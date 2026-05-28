@@ -3,6 +3,10 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+//connect to db
+const db = require('./db');
+
+//express
 const app = express();
 
 // Middleware
@@ -12,6 +16,18 @@ app.use(express.json()); // Allows us to receive JSON data from frontend
 // A simple test route
 app.get('/', (req, res) => {
     res.json({ message: "Welcome to the ACDW Backend API!" });
+});
+
+//Test to read data from Users database
+app.get('/api/users', (req, res) => {
+    const sql = "SELECT * FROM users";
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error("Error fetching users:", err);
+            return res.status(500).json({ error: "Database error" });
+        }
+        res.json(results);
+    });
 });
 
 // Start the server
