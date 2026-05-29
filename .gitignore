@@ -1,0 +1,13 @@
+# Virtual environment
+AI_module/venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyd
+
+# Large compiled files
+*.dll
+*.so
