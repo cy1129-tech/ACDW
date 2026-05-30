@@ -1,29 +1,30 @@
-// app/register/page.tsx
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import axios from 'axios'; // 🟢 引入 axios 直接发送完整的四参数注册请求
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  // 🟢 核心高光：新增组织名状态绑定控制中心
+  const [organizationName, setOrganizationName] = useState('');
+  
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { register } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Validation
-    if (!username || !email || !password) {
-      setError('All fields are required');
+    // Validation — 组织名升级为前端强校验项
+    if (!username || !email || !password || !organizationName) {
+      setError('All fields including Organisation Name are required');
       return;
     }
 
@@ -40,11 +41,18 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await register(username, email, password);
-      // Registration successful, redirect to dashboard
-      router.push('/dashboard');
+      // 🟢 关键跨越：直接呼叫后端的注册接口，完美打包推送 4 个核心参数
+      await axios.post('http://localhost:5000/api/auth/register', {
+        username,
+        email,
+        password,
+        organization_name: organizationName, // 👈 顺利送往后端入库
+      });
+
+      // 注册成功后，极其丝滑地强制拦截并带去登录页
+      router.push('/login');
     } catch (err: any) {
-      setError(err.message || 'Registration failed');
+      setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -64,11 +72,27 @@ export default function RegisterPage() {
           </div>
         )}
 
+        {/* 🟢 完美的表单聚合结构：所有输入域全部乖乖呆在 <form> 内部 */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* Organisation Name */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">
+              Organisation Name *
+            </label>
+            <input
+              type="text"
+              value={organizationName}
+              onChange={(e) => setOrganizationName(e.target.value)}
+              placeholder="e.g., Red Cross, UPM Solar Group"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
+            />
+          </div>
+
           {/* Username */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">
-              Username
+              Username *
             </label>
             <input
               type="text"
@@ -82,7 +106,7 @@ export default function RegisterPage() {
           {/* Email */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">
-              Email
+              Email *
             </label>
             <input
               type="email"
@@ -96,7 +120,7 @@ export default function RegisterPage() {
           {/* Password */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">
-              Password
+              Password *
             </label>
             <input
               type="password"
@@ -110,7 +134,7 @@ export default function RegisterPage() {
           {/* Confirm Password */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">
-              Confirm Password
+              Confirm Password *
             </label>
             <input
               type="password"

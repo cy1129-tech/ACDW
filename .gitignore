@@ -34,4 +34,5 @@ backend/uploads/
 .next/
 .vscode/
 
+#alr switched to open ai CLIP
 *.pt
