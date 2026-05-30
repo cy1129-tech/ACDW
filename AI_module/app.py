@@ -35,6 +35,8 @@ def classify_route():
 
     # Apply rules
     result = apply_rules(result)
+    
+    print("⚡ FLASK RETURNING TO NODEJS:", result)
 
     return jsonify(result), 200
 

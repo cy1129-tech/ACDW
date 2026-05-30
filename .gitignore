@@ -11,3 +11,27 @@ __pycache__/
 # Large compiled files
 *.dll
 *.so
+# 过滤 Node.js 第三方依赖包
+node_modules/
+**/node_modules/
+
+# 过滤环境配置文件和敏感密码
+.env
+**/ .env
+backend/.env
+
+# 过滤 AI 的巨型数据集、压缩包和临时测试上传图
+*.zip
+dataset/
+**/dataset/
+uploads/
+**/uploads/
+AI_module/uploads/
+backend/uploads/
+
+# 过滤操作系统和 VS Code 的缓存垃圾
+.DS_Store
+.next/
+.vscode/
+
+*.pt

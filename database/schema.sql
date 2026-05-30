@@ -17,19 +17,19 @@ CREATE TABLE clothing_items (
     cloth_id INT AUTO_INCREMENT PRIMARY KEY,
     item_name VARCHAR(100) NOT NULL,
     description TEXT,
-    size VARCHAR(10),
-    condition VARCHAR(20),
-    category VARCHAR(50),
+    gender ENUM('Female','Male','Unisex') NOT NULL,
+    age_group      ENUM('Girl','Adult','Elderly') NOT NULL,
+    clothing_type  ENUM('Pants','Clothes','Skirt','Dress') NOT NULL,
+    sub_type       ENUM('Long pants','Short pants',
+                        'Long sleeve','Short sleeve',
+                        'Long skirt','Short skirt') NULL,
+    combined_label VARCHAR(255),
+    priority       ENUM('High','Medium','Low') DEFAULT 'Medium',
+    pool           VARCHAR(50),
+    image_path     VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 );
 
-CREATE TABLE categories (
-    category_id INT PRIMARY KEY,
-    category_name FOREIGN KEY (category_name) REFERENCES clothing_items(category);
-    item_name FOREIGN KEY (item_name) REFERENCES clothing_items(item_name);
-    description FOREIGN KEY (description) REFERENCES clothing_items(description);
-    size FOREIGN KEY (size) REFERENCES clothing_items(size);
-    condition FOREIGN KEY (condition) REFERENCES clothing_items(condition);
-    created_at FOREIGN KEY (created_at) REFERENCES clothing_items(created_at);
-);
+
+
 
