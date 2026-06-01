@@ -1,37 +1,36 @@
-//This is the brain of our backend.
+// backend/server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-//connect to db
+// Connect to db
 const db = require('./config/db');
 
-//express
 const app = express();
 
 // Middleware
-// 找到这行并替换
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://acdw.vercel.app'], // 允许本地测试和Vercel线上版
+    origin: ['http://localhost:3000', 'https://acdw.vercel.app'], 
     credentials: true
 }));
-// 允许接收最大 50MB 的纯 JSON 字符串爆破
+
+// 💡 干净、唯一的容量爆破与体解析中间件，彻底清除后面多余的二次挂载，防止聊天卡死
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true })); // Allows us to receive JSON data from frontend
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 app.use('/uploads', express.static('uploads'));
-app.use(express.urlencoded({ extended: true }))
 
 // Routes
-app.use('/api/auth',      require('./routes/auth'))
-app.use('/api/clothing',  require('./routes/clothing'))
-app.use('/api/chatbot',   require('./routes/chatbot'))
+app.use('/api/auth',      require('./routes/auth'));
+app.use('/api/clothing',  require('./routes/clothing'));
+app.use('/api/chatbot',   require('./routes/chatbot'));
 
 // A simple test route
 app.get('/', (req, res) => {
     res.json({ message: "Welcome to the ACDW Backend API!" });
 });
 
-//Test to read data from Users database
+// Test to read data from Users database
 app.get('/api/users', (req, res) => {
     const sql = "SELECT * FROM users";
     db.query(sql, (err, results) => {
