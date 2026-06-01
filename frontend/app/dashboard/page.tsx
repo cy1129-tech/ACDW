@@ -46,7 +46,7 @@ export default function DashboardPage() {
 
     try {
       const response = await axios.post(
-        'http://localhost:5000/api/chatbot',
+        `${process.env.NEXT_PUBLIC_API_URL}/api/chatbot`,
         { message: userText, history: messages },
         { headers: { Authorization: `Bearer ${token}` } }
       );

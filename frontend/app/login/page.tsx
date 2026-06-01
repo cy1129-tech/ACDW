@@ -43,7 +43,7 @@ export default function LoginPage() {
     if (!forgotUsername || !forgotEmail) { setModalError('Please fill in all fields'); return; }
     setModalLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/forgot-password', { username: forgotUsername, email: forgotEmail });
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/forgot-password`, { username: forgotUsername, email: forgotEmail });
       if (response.data.success) {
         setModalMessage('✅ Temporary password sent! Please check your Gmail box.');
         setForgotUsername(''); setForgotEmail('');

@@ -51,7 +51,7 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       const response = await axios.put(
-        'http://localhost:5000/api/auth/profile',
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`,
         { username, email, password: password || undefined },
         { headers: { Authorization: `Bearer ${token}` } }
       );

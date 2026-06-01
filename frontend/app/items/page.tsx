@@ -304,7 +304,7 @@ export default function ItemsPage() {
     if (!distForm.recipient_name.trim()) return;
     try {
       setLoading(true);
-      await axios.post('http://localhost:5000/api/clothing/distribute', { ...distForm, item_ids: selectedIds }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/clothing/distribute`, { ...distForm, item_ids: selectedIds }, { headers: { Authorization: `Bearer ${token}` } });
       alert('🚚 Material distribution recorded successfully!');
       setIsDistModalOpen(false);
       setSelectedIds([]);
@@ -345,7 +345,7 @@ export default function ItemsPage() {
 
   const getImageUrl = (path: string) => {
     if (!path) return '/placeholder-cloth.png';
-    return `http://localhost:5000/${path.replace(/\\/g, '/')}`;
+    return `${process.env.NEXT_PUBLIC_API_URL}/${path.replace(/\\/g, '/')}`;
   };
 
   const getDynamicInventorySummary = () => {

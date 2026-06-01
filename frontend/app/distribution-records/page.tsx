@@ -45,7 +45,7 @@ export default function DistributionRecordsPage() {
   const fetchRecords = async (preserveActiveId?: number) => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:5000/api/clothing/distributions', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/clothing/distributions`, { headers: { Authorization: `Bearer ${token}` } });
       setRecords(res.data);
       
       if (res.data.length > 0) {
@@ -72,7 +72,7 @@ export default function DistributionRecordsPage() {
       note: record.note || ''
     });
     try {
-      const res = await axios.get(`http://localhost:5000/api/clothing/distributions/${record.id}/items`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/clothing/distributions/${record.id}/items`, { headers: { Authorization: `Bearer ${token}` } });
       setActiveItems(res.data);
     } catch (e) { 
       alert('Error parsing details stream'); 
@@ -83,7 +83,7 @@ export default function DistributionRecordsPage() {
   const handleSaveEdit = async () => {
     if (!activeRecord) return;
     try {
-      await axios.put(`http://localhost:5000/api/clothing/distributions/${activeRecord.id}`, editForm, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/clothing/distributions/${activeRecord.id}`, editForm, { headers: { Authorization: `Bearer ${token}` } });
       alert('✅ Distribution recipient metrics updated successfully!');
       setIsEditing(false);
       fetchRecords(activeRecord.id);
@@ -97,7 +97,7 @@ export default function DistributionRecordsPage() {
     if (!activeRecord) return;
     if (!confirm('⚠️ UNDO ACTION: Are you sure you want to cancel this distribution? All garments will instantly return to inventory catalog pool.')) return;
     try {
-      await axios.post(`http://localhost:5000/api/clothing/distributions/${activeRecord.id}/cancel`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/clothing/distributions/${activeRecord.id}/cancel`, {}, { headers: { Authorization: `Bearer ${token}` } });
       alert('↩️ Distribution cancelled and inventory successfully rolled back!');
       fetchRecords(activeRecord.id);
     } catch (e) {
@@ -107,7 +107,7 @@ export default function DistributionRecordsPage() {
 
   const getImageUrl = (path: string) => {
     if (!path) return '/placeholder-cloth.png';
-    return `http://localhost:5000/${path.replace(/\\/g, '/')}`;
+    return `${process.env.NEXT_PUBLIC_API_URL}/${path.replace(/\\/g, '/')}`;
   };
 
   const filteredRecords = records.filter(rec => {
