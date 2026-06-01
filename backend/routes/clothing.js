@@ -99,6 +99,8 @@ router.post('/upload', verifyToken, async (req, res) => {
         // 将解密后的二进制流写入服务器硬盘
         fs.writeFileSync(savedImagePath, Buffer.from(cleanBase64, 'base64'));
 
+        console.log("🚀 Sending image to AI service...");
+
         // 3. 原封不动地发送给你的云端 Python AI 服务进行 99% 精准看图
         const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, {
             image: cleanBase64,
@@ -106,6 +108,10 @@ router.post('/upload', verifyToken, async (req, res) => {
             age_group: age_group || 'Adult',
             sub_type: sub_type || null
         });
+
+
+        console.log("✅ AI returned:", aiResponse.data);
+        
 
         const aiResult = aiResponse.data;
         const mappedValues = mapToValidENUMs(aiResult);
