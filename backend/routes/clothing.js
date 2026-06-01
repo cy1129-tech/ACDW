@@ -20,6 +20,8 @@ function correctGenderByClothing(clothingType, subType, detectedGender) {
     return detectedGender;
 }
 
+// backend/routes/clothing.js -> 请单单覆盖替换这个 mapToValidENUMs 函数即可
+
 function mapToValidENUMs(aiResult) {
     const validGenders = ['Female', 'Male', 'Unisex'];
     const validAgeGroups = ['Children', 'Adult'];
@@ -33,8 +35,14 @@ function mapToValidENUMs(aiResult) {
     };
 
     function findClosestMatch(value, validList) {
-        if (!value || validList.length === 0) return validList[0] || null;
+        if (!value) return validList[0] || null;
         value = String(value).trim();
+        
+        // 💡 【核心安全修复】：如果 AI 偶然返回了带 ERROR 的字符串，不要触发盲目兜底，立刻返回默认安全值
+        if (value.toUpperCase().includes('ERROR')) {
+            return null;
+        }
+        
         const exactMatch = validList.find(v => v.toLowerCase() === value.toLowerCase());
         if (exactMatch) return exactMatch;
         const partialMatch = validList.find(v => v.toLowerCase().includes(value.toLowerCase()) || value.toLowerCase().includes(v.toLowerCase()));
@@ -43,6 +51,9 @@ function mapToValidENUMs(aiResult) {
     }
 
     let clothingType = findClosestMatch(aiResult.clothing_type, validClothingTypes);
+    // 💡 安全防护降级
+    if (!clothingType) clothingType = 'Clothes'; 
+
     let subType = null;
     const originalSubType = String(aiResult.sub_type || '').toLowerCase();
 
@@ -55,13 +66,22 @@ function mapToValidENUMs(aiResult) {
             subType = findClosestMatch(aiResult.sub_type, validSubTypes);
         }
     }
+    // 💡 子类型安全降级
+    if (!subType && clothingType === 'Clothes') subType = 'Short sleeve';
+    if (!subType && clothingType === 'Pants') subType = 'Long pants';
+    if (!subType && clothingType === 'Skirt') subType = 'Short skirt';
+    if (!subType && clothingType === 'Dress') subType = 'Dress';
 
     let gender = findClosestMatch(aiResult.gender, validGenders);
+    if (!gender) gender = 'Unisex';
     gender = correctGenderByClothing(clothingType, subType, gender);
+
+    let ageGroup = findClosestMatch(aiResult.age_group, validAgeGroups);
+    if (!ageGroup) ageGroup = 'Adult';
 
     return {
         gender: gender,
-        age_group: findClosestMatch(aiResult.age_group, validAgeGroups),
+        age_group: ageGroup,
         clothing_type: clothingType,
         sub_type: subType,
         priority: 'Medium'
