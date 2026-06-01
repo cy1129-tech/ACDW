@@ -10,7 +10,11 @@ const db = require('./config/db');
 const app = express();
 
 // Middleware
-app.use(cors());
+// 找到这行并替换
+app.use(cors({
+    origin: ['http://localhost:3000', 'https://acdw.vercel.app'], // 允许本地测试和Vercel线上版
+    credentials: true
+}));
 app.use(express.json()); // Allows us to receive JSON data from frontend
 app.use('/uploads', express.static('uploads'));
 app.use(express.urlencoded({ extended: true }))
