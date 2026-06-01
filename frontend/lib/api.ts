@@ -1,3 +1,4 @@
+// final check
 // lib/api.ts
 // This file handles all communication with the backend API
 // frontend/lib/api.ts
