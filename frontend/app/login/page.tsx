@@ -204,7 +204,7 @@ export default function LoginPage() {
 
       <div className="auth-root">
         <div className="auth-card">
-          <div className="auth-logo">ACDW System</div>
+          <div className="auth-logo">SnapDonate System</div>
           <div className="auth-sub">Sign in to your account</div>
 
           {error && <div className="alert-error">{error}</div>}

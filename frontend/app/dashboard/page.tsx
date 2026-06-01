@@ -19,7 +19,7 @@ export default function DashboardPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLarge, setIsLarge] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { sender: 'ai', text: 'Hello! 🤖 I am your ACDW Charity Assistant. Ask me which real shelters or orphanages in Malaysia urgently need clothing donations right now!' }
+    { sender: 'ai', text: 'Hello! 🤖 I am your SnapDonate Charity Assistant. Ask me which real shelters or orphanages in Malaysia urgently need clothing donations right now!' }
   ]);
   const [input, setInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -685,7 +685,7 @@ export default function DashboardPage() {
         <div className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
           <div style={{ width: '100%' }}>
             <div className="sidebar-logo-row">
-              {isSidebarOpen && <span className="sidebar-logo">ACDW System</span>}
+              {isSidebarOpen && <span className="sidebar-logo">SnapDonate System</span>}
               <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="hamburger-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" style={{ width: 16, height: 16 }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -748,7 +748,7 @@ export default function DashboardPage() {
               <div>
                 <div className="card-icon-wrap icon-1">👤</div>
                 <div className="card-title">Account Profile</div>
-                <div className="card-desc">View organization identity sandbox, manage username tokens, and change password keys.</div>
+                <div className="card-desc">View organization name, change username/email/password.</div>
               </div>
               <div className="card-arrow arrow-1">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" style={{ width: 16, height: 16 }}>
@@ -763,7 +763,7 @@ export default function DashboardPage() {
               <div>
                 <div className="card-icon-wrap icon-2">📸</div>
                 <div className="card-title">Upload & AI Classify</div>
-                <div className="card-desc">Upload raw clothing images. Let our multi-stage Cascading CLIP AI machine parse types into database partitions.</div>
+                <div className="card-desc">Upload raw clothing images. Let our SnapDonate AI analyses and catogotised the cloth types.</div>
               </div>
               <div className="card-arrow arrow-2">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" style={{ width: 16, height: 16 }}>
@@ -793,7 +793,7 @@ export default function DashboardPage() {
               <div>
                 <div className="card-icon-wrap icon-4">🚚</div>
                 <div className="card-title">Distribution Records</div>
-                <div className="card-desc">Audit outbox material ledgers, query historical recipient chains, and view itemized garment logs inside.</div>
+                <div className="card-desc">View distributed items and query historical recipient records.</div>
               </div>
               <div className="card-arrow arrow-4">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" style={{ width: 16, height: 16 }}>
@@ -814,7 +814,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 22 }}>🤖</span>
                   <div>
-                    <div className="chat-header-title">ACDW AI Shelter Finder</div>
+                    <div className="chat-header-title">SnapDonate AI Shelter Finder</div>
                     <div className="chat-header-sub">Live Search Grounding Enabled</div>
                   </div>
                 </div>

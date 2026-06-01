@@ -142,7 +142,7 @@ export default function RegisterPage() {
 
       <div className="auth-root">
         <div className="auth-card">
-          <div className="auth-logo">ACDW System</div>
+          <div className="auth-logo">SnapDonate System</div>
           <div className="auth-sub">Create your organisation account</div>
 
           {error && <div className="alert-error">{error}</div>}
