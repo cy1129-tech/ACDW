@@ -35,10 +35,10 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
         }
 
         model = genai.GenerativeModel(
-            model_name='gemini-2.5-flash',
+            'gemini-2.5-flash',
             generation_config=generation_config
         )
-        prompt = """"
+        prompt = """
                 You are an inventory classification AI for a clothing donation system.
 
                 Your task is to classify ONLY the visible clothing item in the image.
@@ -149,12 +149,13 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
         # 💡 【高稳定适配器】：使用最新 SDK 标准语法生成内容
         response = model.generate_content([prompt, img])
         raw_text = response.text.strip()
-        print(f"📥 [Gemini Response Raw]: {raw_text}")
+        print(f"📥 [Gemini Response Raw]: {raw_text}", flush=True)
 
         # 3. 强效正则解包，防止大模型吐出多余的胡话
         json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
         clean_json = json_match.group(0) if json_match else raw_text
         result = json.loads(clean_json)
+        print("⚡ AI SERVER SUCCESS RETURN:", result, flush=True)
 
         # 4. 纠正大小写与前端数据格式对齐
         final_type = str(result.get('clothing_type', 'Clothes')).strip().capitalize()
@@ -167,31 +168,14 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
             'gender': str(result.get('gender', 'Unisex')).strip().capitalize(),
             'age_group': str(result.get('age_group', 'Adult')).strip().capitalize()
         }
-
     except Exception as e:
-        print(f"❌ [GEMINI ERROR LOG]: {e}")
-        print("💡 [FALLBACK]: Activating smart text heuristic fallback...")
-        
-        # 👑 【规则作弊引擎极限加强版】：如果云端调用还是报错，我们直接用图片的长宽比和文件名干掉错误！
-        filename = os.path.basename(image_path).lower()
-        t, s, g, a = "Clothes", "Short sleeve", "Unisex", "Adult"
-        
-        try:
-            w, h = img.size
-            ratio = h / w
-            # 如果图片长宽比很大，保底判定为 Dress 或 Pants
-            if 'skirt' in filename:
-                t, s, g = "Skirt", "Short skirt", "Female"
-            elif 'pant' in filename or 'short' in filename or 'trousers' in filename:
-                t, s = "Pants", "Long pants" if ("long" in filename or ratio > 1.2) else "Short pants"
-            elif 'dress' in filename or 'gown' in filename or ratio > 1.4:
-                t, s, g = "Dress", "Dress", "Female"
-            elif 'coat' in filename or 'jacket' in filename or 'suit' in filename or 'shirt' in filename:
-                # 针对你的格子长袖衬衫做精准防御
-                t, s = "Clothes", "Long sleeve"
-                
-         
-        except Exception as img_err:
-            print(f"Img metadata fetch note: {img_err}")
+        print(f"❌ [GEMINI ERROR LOG]: {e}", flush=True)
 
-        return {'clothing_type': t, 'sub_type': s, 'gender': g, 'age_group': a}
+        return {
+            "clothing_type": "ERROR",
+            "sub_type": "ERROR",
+            "gender": "ERROR",
+            "age_group": "ERROR"
+        }
+        
+       
