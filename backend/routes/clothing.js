@@ -69,18 +69,29 @@ function mapToValidENUMs(aiResult) {
 }
 
 // 👑 彻底剔除 Multer，纯 JSON 安全接收
-router.post('/upload', verifyToken, async (req, res) => {
+// backend/routes/clothing.js
+
+// 👑 终极完美形态：既保留 Multer 物理存图提供给前端显示，又用 JSON Base64 转发给 AI
+router.post('/upload', verifyToken, upload.single('image'), async (req, res) => {
     try {
         const { item_name, description, image, gender, age_group, sub_type } = req.body;
-        if (!image) return res.status(400).json({ error: 'No image data received' });
+        
+        // 1. 优先抓取前端传来的 image，如果没有，则说明前端还是旧表单，直接用物理文件转 base64 兜底
+        let finalBase64 = image;
+        if (!finalBase64 && req.file) {
+            const imageBuffer = fs.readFileSync(req.file.path);
+            finalBase64 = imageBuffer.toString('base64');
+        }
+
+        if (!finalBase64) return res.status(400).json({ error: 'No image data received' });
 
         // 数据清洗：去掉前端附加的 data:image/... 头
-        let cleanBase64 = String(image);
+        let cleanBase64 = String(finalBase64);
         if (cleanBase64.includes(',')) {
             cleanBase64 = cleanBase64.split(',')[1];
         }
 
-        // 发送纯净文本给 Python
+        // 2. 呼叫云端 Python AI 服务
         const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, {
             image: cleanBase64,
             gender: gender || 'Unisex',
@@ -95,14 +106,34 @@ router.post('/upload', verifyToken, async (req, res) => {
         if (mappedValues.sub_type) labels.push(mappedValues.sub_type);
         const combinedLabel = labels.join(' + ');
 
+        // 💡 核心修复：image_path 绝对不写死 'cloud_upload'，而是存入真实的物理访问路径或相对路径！
+        // 如果物理存图成功，存 req.file.path，否则用临时标记
+        const savedImagePath = req.file ? req.file.path : 'uploads/default.jpg';
+
+        // 3. 塞进 Aiven 数据库
         db.query(
             `INSERT INTO clothing_items
              (item_name, description, gender, age_group, clothing_type, sub_type, combined_label, priority, image_path, organization_name)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [item_name || 'Clothing Item', description || '', mappedValues.gender, mappedValues.age_group, mappedValues.clothing_type, mappedValues.sub_type, combinedLabel, mappedValues.priority, 'cloud_upload', req.orgName],
+            [
+                item_name || 'Clothing Item', 
+                description || '', 
+                mappedValues.gender, 
+                mappedValues.age_group, 
+                mappedValues.clothing_type, 
+                mappedValues.sub_type, 
+                combinedLabel, 
+                mappedValues.priority, 
+                savedImagePath, // 👈 存入真实路径，图片瞬间在前台亮起！
+                req.orgName
+            ],
             (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.status(201).json({ message: 'Clothing uploaded and classified ✅', item_id: result.insertId, ai_result: mappedValues });
+                res.status(201).json({ 
+                    message: 'Clothing uploaded and classified ✅', 
+                    item_id: result.insertId, 
+                    ai_result: mappedValues 
+                });
             }
         );
     } catch (err) {
@@ -110,6 +141,7 @@ router.post('/upload', verifyToken, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+//-------------------
 
 router.get('/', verifyToken, (req, res) => {
     const { type, gender, age_group, search } = req.query;

@@ -15,7 +15,9 @@ app.use(cors({
     origin: ['http://localhost:3000', 'https://acdw.vercel.app'], // 允许本地测试和Vercel线上版
     credentials: true
 }));
-app.use(express.json()); // Allows us to receive JSON data from frontend
+// 允许接收最大 50MB 的纯 JSON 字符串爆破
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true })); // Allows us to receive JSON data from frontend
 app.use('/uploads', express.static('uploads'));
 app.use(express.urlencoded({ extended: true }))
 
