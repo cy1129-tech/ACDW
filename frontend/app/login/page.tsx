@@ -12,7 +12,6 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 🟢 Forgot Password Modal 状态控制池
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [forgotUsername, setForgotUsername] = useState('');
   const [forgotEmail, setForgotEmail] = useState('');
@@ -26,12 +25,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!username || !password) {
-      setError('Username and password are required');
-      return;
-    }
-
+    if (!username || !password) { setError('Username and password are required'); return; }
     setLoading(true);
     try {
       await login(username, password);
@@ -43,28 +37,16 @@ export default function LoginPage() {
     }
   };
 
-  // 🟢 触发忘记密码提交逻辑
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setModalError('');
-    setModalMessage('');
-
-    if (!forgotUsername || !forgotEmail) {
-      setModalError('Please fill in all fields');
-      return;
-    }
-
+    setModalError(''); setModalMessage('');
+    if (!forgotUsername || !forgotEmail) { setModalError('Please fill in all fields'); return; }
     setModalLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/forgot-password', {
-        username: forgotUsername,
-        email: forgotEmail
-      });
-
+      const response = await axios.post('http://localhost:5000/api/auth/forgot-password', { username: forgotUsername, email: forgotEmail });
       if (response.data.success) {
         setModalMessage('✅ Temporary password sent! Please check your Gmail box.');
-        setForgotUsername('');
-        setForgotEmail('');
+        setForgotUsername(''); setForgotEmail('');
       }
     } catch (err: any) {
       setModalError(err.response?.data?.error || 'Verification failed. Check credentials.');
@@ -74,127 +56,209 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 relative">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md z-10">
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-          ACDW System
-        </h1>
-        <p className="text-center text-gray-600 mb-8">Sign in to your account</p>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Outfit:wght@700;800;900&display=swap');
+        .auth-root {
+          font-family: 'Nunito', sans-serif;
+          min-height: 100vh; width: 100%;
+          display: flex; align-items: center; justify-content: center;
+          position: relative; overflow: hidden; padding: 24px;
+          background: #f0f4ff;
+          box-sizing: border-box;
+        }
+        .auth-root::before {
+          content: ''; position: fixed; inset: 0;
+          background:
+            radial-gradient(ellipse 70% 60% at 10% 10%, rgba(167,139,250,0.25) 0%, transparent 55%),
+            radial-gradient(ellipse 60% 50% at 90% 90%, rgba(251,146,60,0.18) 0%, transparent 55%),
+            radial-gradient(ellipse 55% 45% at 70% 0%, rgba(56,189,248,0.18) 0%, transparent 55%),
+            radial-gradient(ellipse 50% 40% at 20% 100%, rgba(52,211,153,0.14) 0%, transparent 55%),
+            linear-gradient(145deg, #eef2ff 0%, #fdf4ff 45%, #f0fdf4 100%);
+          pointer-events: none; z-index: 0;
+        }
+        .auth-card {
+          position: relative; z-index: 1;
+          background: white;
+          border: 1.5px solid rgba(139,92,246,0.14);
+          border-radius: 28px;
+          padding: 44px 40px;
+          width: 100%; max-width: 420px;
+          box-shadow: 0 8px 48px rgba(124,58,237,0.12);
+          overflow: hidden;
+        }
+        .auth-card::before {
+          content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+          background: linear-gradient(90deg, #7c3aed, #ec4899, #f97316, #10b981);
+        }
+        .auth-logo {
+          font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 26px;
+          background: linear-gradient(135deg, #7c3aed, #ec4899, #f97316);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          background-clip: text; text-align: center; margin-bottom: 6px;
+        }
+        .auth-sub {
+          text-align: center; font-size: 13px; color: #9ca3af;
+          font-weight: 600; margin-bottom: 32px;
+        }
+        .field-label {
+          display: block; font-size: 11px; font-weight: 800; color: #9ca3af;
+          letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
+        }
+        .field-row {
+          display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+        }
+        .field-input {
+          width: 100%; padding: 12px 16px;
+          border: 1.5px solid rgba(139,92,246,0.18); border-radius: 14px;
+          font-size: 14px; color: #1e1b4b;
+          font-family: 'Nunito', sans-serif; font-weight: 700;
+          background: #f9f8ff; outline: none; transition: all 0.2s;
+          box-sizing: border-box;
+        }
+        .field-input:focus { border-color: #7c3aed; background: #faf5ff; box-shadow: 0 0 0 3px rgba(124,58,237,0.09); }
+        .field-input::placeholder { color: #c4b5fd; font-weight: 600; }
+        .forgot-btn {
+          background: none; border: none; color: #7c3aed;
+          font-size: 11.5px; font-weight: 800; cursor: pointer;
+          font-family: 'Nunito', sans-serif; padding: 0;
+          transition: color 0.2s;
+        }
+        .forgot-btn:hover { color: #6d28d9; text-decoration: underline; }
+        .submit-btn {
+          width: 100%; background: linear-gradient(135deg, #7c3aed, #a855f7);
+          border: none; border-radius: 14px; color: white;
+          font-size: 14px; font-weight: 800; padding: 14px;
+          cursor: pointer; transition: all 0.2s; font-family: 'Nunito', sans-serif;
+          margin-top: 8px;
+        }
+        .submit-btn:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,58,237,0.32); }
+        .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .alert-error {
+          background: #fff1f2; border: 1.5px solid rgba(244,63,94,0.25);
+          color: #be123c; border-radius: 14px; padding: 12px 16px;
+          font-size: 13px; font-weight: 700; margin-bottom: 20px;
+        }
+        .register-link {
+          text-align: center; font-size: 13px; color: #9ca3af;
+          font-weight: 600; margin-top: 24px;
+        }
+        .register-link a { color: #7c3aed; font-weight: 800; text-decoration: none; }
+        .register-link a:hover { text-decoration: underline; }
+        .field-spacer { margin-bottom: 18px; }
+        .divider { border: none; border-top: 2px dashed rgba(139,92,246,0.1); margin: 24px 0; }
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-            {error}
-          </div>
-        )}
+        /* Modal */
+        .modal-overlay {
+          position: fixed; inset: 0;
+          background: rgba(30,27,75,0.45);
+          backdrop-filter: blur(5px);
+          z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px;
+        }
+        .modal-card {
+          background: white; border-radius: 24px;
+          box-shadow: 0 24px 64px rgba(124,58,237,0.2);
+          width: 100%; max-width: 400px; padding: 32px;
+          position: relative; overflow: hidden;
+        }
+        .modal-card::before {
+          content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+          background: linear-gradient(90deg, #7c3aed, #ec4899, #f97316);
+        }
+        .modal-title { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 900; color: #1e1b4b; margin-bottom: 5px; }
+        .modal-sub { font-size: 12px; color: #9ca3af; font-weight: 600; margin-bottom: 24px; }
+        .modal-alert-error {
+          background: #fff1f2; border: 1.5px solid rgba(244,63,94,0.2);
+          color: #be123c; border-radius: 12px; padding: 10px 14px;
+          font-size: 12.5px; font-weight: 700; margin-bottom: 16px;
+        }
+        .modal-alert-success {
+          background: #f0fdf4; border: 1.5px solid rgba(16,185,129,0.2);
+          color: #065f46; border-radius: 12px; padding: 10px 14px;
+          font-size: 12.5px; font-weight: 700; margin-bottom: 16px;
+        }
+        .modal-field { margin-bottom: 16px; }
+        .modal-label { display: block; font-size: 11px; font-weight: 800; color: #9ca3af; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 7px; }
+        .modal-input {
+          width: 100%; padding: 10px 14px;
+          border: 1.5px solid rgba(139,92,246,0.15); border-radius: 12px;
+          font-size: 13px; color: #1e1b4b; font-family: 'Nunito', sans-serif; font-weight: 700;
+          background: #f9f8ff; outline: none; transition: all 0.2s; box-sizing: border-box;
+        }
+        .modal-input:focus { border-color: #7c3aed; background: #faf5ff; }
+        .modal-footer { display: flex; gap: 10px; padding-top: 20px; border-top: 1.5px dashed rgba(139,92,246,0.1); margin-top: 8px; }
+        .modal-cancel {
+          flex: 1; background: #f5f3ff; border: 1.5px solid rgba(139,92,246,0.15);
+          border-radius: 12px; color: #7c3aed; font-size: 13px; font-weight: 800;
+          padding: 11px; cursor: pointer; font-family: 'Nunito', sans-serif;
+        }
+        .modal-confirm {
+          flex: 1; background: linear-gradient(135deg, #7c3aed, #a855f7);
+          border: none; border-radius: 12px; color: white;
+          font-size: 13px; font-weight: 800; padding: 11px;
+          cursor: pointer; font-family: 'Nunito', sans-serif; transition: all 0.2s;
+        }
+        .modal-confirm:hover { opacity: 0.9; }
+        .modal-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+      `}</style>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Username */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2 text-sm">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 text-sm"
-            />
-          </div>
+      <div className="auth-root">
+        <div className="auth-card">
+          <div className="auth-logo">ACDW System</div>
+          <div className="auth-sub">Sign in to your account</div>
 
-          {/* Password */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-gray-700 font-semibold text-sm">Password</label>
-              {/* 🟢 华丽加装：精致对齐的 Forgot Password 触发超链接 */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsModalOpen(true);
-                  setModalError('');
-                  setModalMessage('');
-                }}
-                className="text-xs text-indigo-600 font-semibold hover:underline"
-              >
-                Forgot password?
-              </button>
+          {error && <div className="alert-error">{error}</div>}
+
+          <form onSubmit={handleSubmit}>
+            <div className="field-spacer">
+              <label className="field-label">Username</label>
+              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" className="field-input" />
             </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 text-sm"
-            />
+
+            <div className="field-spacer">
+              <div className="field-row">
+                <label className="field-label" style={{ margin: 0 }}>Password</label>
+                <button type="button" className="forgot-btn" onClick={() => { setIsModalOpen(true); setModalError(''); setModalMessage(''); }}>
+                  Forgot password?
+                </button>
+              </div>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className="field-input" style={{ marginTop: 8 }} />
+            </div>
+
+            <button type="submit" disabled={loading} className="submit-btn">
+              {loading ? 'Logging in...' : 'Login →'}
+            </button>
+          </form>
+
+          <div className="register-link">
+            Don't have an account?{' '}
+            <Link href="/register">Register here</Link>
           </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition text-sm disabled:opacity-50"
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-
-        {/* Register Link */}
-        <p className="text-center text-gray-600 mt-6 text-sm">
-          Don't have an account?{' '}
-          <Link href="/register" className="text-indigo-600 font-semibold hover:underline">
-            Register here
-          </Link>
-        </p>
+        </div>
       </div>
 
-      {/* ================================================================= */}
-      {/* 🟢 终极高光：华丽的悬浮忘记密码重置控制暗箱 (Modal Overlay) */}
-      {/* ================================================================= */}
+      {/* Forgot Password Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm animate-in fade-in zoom-in-95 duration-150">
-            <h3 className="text-xl font-bold text-gray-900 mb-1">Reset Password</h3>
-            <p className="text-xs text-gray-500 mb-4">Enter credentials to receive a temporary pass key.</p>
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-title">Reset Password</div>
+            <div className="modal-sub">Enter your credentials to receive a temporary pass key.</div>
 
-            {modalError && <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg mb-3 text-xs">{modalError}</div>}
-            {modalMessage && <div className="bg-green-50 border border-green-200 text-green-600 px-3 py-2 rounded-lg mb-3 text-xs font-semibold">{modalMessage}</div>}
+            {modalError && <div className="modal-alert-error">{modalError}</div>}
+            {modalMessage && <div className="modal-alert-success">{modalMessage}</div>}
 
-            <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
-              <div>
-                <label className="block text-gray-700 font-medium text-xs mb-1">Username</label>
-                <input
-                  type="text"
-                  required
-                  value={forgotUsername}
-                  onChange={(e) => setForgotUsername(e.target.value)}
-                  placeholder="Your username"
-                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
+            <form onSubmit={handleForgotPasswordSubmit}>
+              <div className="modal-field">
+                <label className="modal-label">Username</label>
+                <input type="text" required value={forgotUsername} onChange={(e) => setForgotUsername(e.target.value)} placeholder="Your username" className="modal-input" />
               </div>
-
-              <div>
-                <label className="block text-gray-700 font-medium text-xs mb-1">Registered Gmail</label>
-                <input
-                  type="email"
-                  required
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="example@gmail.com"
-                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
+              <div className="modal-field">
+                <label className="modal-label">Registered Gmail</label>
+                <input type="email" required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="example@gmail.com" className="modal-input" />
               </div>
-
-              <div className="flex gap-2 justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition"
-                >
-                  Close
-                </button>
-                <button
-                  type="submit"
-                  disabled={modalLoading}
-                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition disabled:opacity-50"
-                >
+              <div className="modal-footer">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="modal-cancel">Close</button>
+                <button type="submit" disabled={modalLoading} className="modal-confirm">
                   {modalLoading ? 'Processing...' : 'Send Key Mail'}
                 </button>
               </div>
@@ -202,6 +266,6 @@ export default function LoginPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

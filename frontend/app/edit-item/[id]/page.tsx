@@ -29,35 +29,24 @@ export default function EditItemPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-  // Load item data
   useEffect(() => {
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
+    if (!token) { router.push('/login'); return; }
     loadItem();
   }, [token, id, router]);
 
   const loadItem = async () => {
     try {
-      setLoading(true);
-      setError('');
-
+      setLoading(true); setError('');
       const result = await getClothingItems(token!);
       const foundItem = result.items.find((i: any) => i.cloth_id === parseInt(id));
-
-      if (!foundItem) {
-        setError('Item not found');
-        return;
-      }
-
+      if (!foundItem) { setError('Item not found'); return; }
       setItem(foundItem);
       setItemName(foundItem.item_name);
       setDescription(foundItem.description || '');
@@ -74,31 +63,13 @@ export default function EditItemPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (!itemName || !clothingType) {
-      setError('Item name and clothing type are required');
-      return;
-    }
-
+    setError(''); setSuccess('');
+    if (!itemName || !clothingType) { setError('Item name and clothing type are required'); return; }
     setSaving(true);
-
     try {
-      await updateClothingItem(token!, parseInt(id), {
-        item_name: itemName,
-        description,
-        gender,
-        age_group: ageGroup,
-        clothing_type: clothingType,
-        sub_type: subType || undefined,
-      });
-
+      await updateClothingItem(token!, parseInt(id), { item_name: itemName, description, gender, age_group: ageGroup, clothing_type: clothingType, sub_type: subType || undefined });
       setSuccess('Item updated successfully! Redirecting...');
-
-      setTimeout(() => {
-        router.push('/items');
-      }, 2000);
+      setTimeout(() => router.push('/items'), 2000);
     } catch (err: any) {
       setError(err.message || 'Failed to update item');
     } finally {
@@ -106,155 +77,251 @@ export default function EditItemPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <p className="text-xl text-gray-600">Loading...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      {/* Header */}
-      <div className="max-w-2xl mx-auto mb-8">
-        <Link href="/items" className="text-indigo-600 hover:underline mb-4 inline-block">
-          ← Back to Items
-        </Link>
-        <h1 className="text-3xl font-bold text-gray-800">Edit Item</h1>
-        <p className="text-gray-600">Update clothing item information</p>
-      </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Outfit:wght@700;800;900&display=swap');
+        .dash-root {
+          font-family: 'Nunito', sans-serif; min-height: 100vh; width: 100%;
+          display: flex; flex-direction: row; overflow-x: hidden;
+          background: #f0f4ff; position: relative;
+        }
+        .dash-root::before {
+          content: ''; position: fixed; inset: 0;
+          background:
+            radial-gradient(ellipse 70% 50% at 5% 10%, rgba(167,139,250,0.2) 0%, transparent 55%),
+            radial-gradient(ellipse 55% 45% at 95% 85%, rgba(251,146,60,0.15) 0%, transparent 55%),
+            radial-gradient(ellipse 60% 40% at 60% 0%, rgba(56,189,248,0.15) 0%, transparent 55%),
+            linear-gradient(145deg, #eef2ff 0%, #fdf4ff 40%, #f0fdf4 100%);
+          pointer-events: none; z-index: 0;
+        }
+        .sidebar {
+          position: relative; z-index: 10;
+          display: flex; flex-direction: column; justify-content: space-between;
+          padding: 24px 16px; background: white;
+          border-right: 1px solid rgba(139,92,246,0.1);
+          box-shadow: 4px 0 24px rgba(139,92,246,0.06);
+          transition: width 0.3s cubic-bezier(.4,0,.2,1); flex-shrink: 0;
+        }
+        .sidebar.open { width: 240px; } .sidebar.closed { width: 72px; }
+        .sidebar-logo {
+          font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 16px;
+          background: linear-gradient(135deg, #7c3aed, #ec4899, #f97316);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          background-clip: text; white-space: nowrap;
+        }
+        .sidebar-logo-row {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 32px; padding-bottom: 20px;
+          border-bottom: 2px dashed rgba(139,92,246,0.12);
+        }
+        .hamburger-btn {
+          background: #f5f3ff; border: 1px solid rgba(139,92,246,0.15);
+          border-radius: 10px; padding: 7px; color: #7c3aed;
+          cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+        }
+        .hamburger-btn:hover { background: #ede9fe; }
+        .nav-link {
+          display: flex; align-items: center; gap: 12px;
+          padding: 11px 13px; border-radius: 14px;
+          font-size: 13.5px; font-weight: 700; color: #6b7280;
+          text-decoration: none; transition: all 0.2s;
+          white-space: nowrap; overflow: hidden; margin-bottom: 4px;
+          border: 1.5px solid transparent;
+        }
+        .nav-link:hover { background: #f5f3ff; color: #7c3aed; border-color: rgba(139,92,246,0.12); }
+        .nav-link.active { background: linear-gradient(135deg, #ede9fe, #fce7f3); color: #7c3aed; border-color: rgba(167,139,250,0.3); }
+        .nav-icon { font-size: 18px; flex-shrink: 0; }
+        .logout-btn {
+          display: flex; align-items: center; gap: 12px;
+          padding: 11px 13px; border-radius: 14px;
+          font-size: 13.5px; font-weight: 700; color: #f43f5e;
+          cursor: pointer; transition: all 0.2s; white-space: nowrap;
+          background: none; border: 1.5px solid transparent;
+        }
+        .logout-btn:hover { background: #fff1f2; border-color: rgba(244,63,94,0.2); }
+        .main-area {
+          flex: 1; padding: 32px; min-width: 0;
+          display: flex; flex-direction: column; align-items: center;
+          position: relative; z-index: 1;
+        }
+        .page-header {
+          width: 100%; max-width: 680px;
+          background: white; border: 1.5px solid rgba(139,92,246,0.12);
+          border-radius: 24px; padding: 22px 28px; margin-bottom: 24px;
+          box-shadow: 0 4px 24px rgba(139,92,246,0.07);
+          position: relative; overflow: hidden;
+        }
+        .page-header::before {
+          content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+          background: linear-gradient(90deg, #7c3aed, #ec4899, #f97316, #10b981);
+          border-radius: 24px 24px 0 0;
+        }
+        .page-title { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 900; color: #1e1b4b; }
+        .page-sub { font-size: 12px; color: #9ca3af; font-weight: 600; margin-top: 3px; }
+        .form-card {
+          width: 100%; max-width: 680px;
+          background: white; border: 1.5px solid rgba(139,92,246,0.12);
+          border-radius: 24px; padding: 32px;
+          box-shadow: 0 4px 24px rgba(139,92,246,0.07);
+        }
+        .field-label {
+          display: block; font-size: 11px; font-weight: 800; color: #9ca3af;
+          letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
+        }
+        .field-input {
+          width: 100%; padding: 11px 16px;
+          border: 1.5px solid rgba(139,92,246,0.15); border-radius: 14px;
+          font-size: 13.5px; color: #1e1b4b;
+          font-family: 'Nunito', sans-serif; font-weight: 700;
+          background: #f9f8ff; outline: none; transition: all 0.2s;
+          box-sizing: border-box;
+        }
+        .field-input:focus { border-color: #7c3aed; background: #faf5ff; box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
+        .section-label {
+          font-size: 11px; font-weight: 800; color: #a78bfa;
+          letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;
+        }
+        .divider { border: none; border-top: 2px dashed rgba(139,92,246,0.1); margin: 24px 0; }
+        .alert-error {
+          background: #fff1f2; border: 1.5px solid rgba(244,63,94,0.25);
+          color: #be123c; border-radius: 14px; padding: 12px 16px;
+          font-size: 13px; font-weight: 700; margin-bottom: 20px;
+        }
+        .alert-success {
+          background: #f0fdf4; border: 1.5px solid rgba(16,185,129,0.25);
+          color: #065f46; border-radius: 14px; padding: 12px 16px;
+          font-size: 13px; font-weight: 700; margin-bottom: 20px;
+        }
+        .btn-save {
+          flex: 1; background: linear-gradient(135deg, #7c3aed, #a855f7);
+          border: none; border-radius: 14px; color: white;
+          font-size: 14px; font-weight: 800; padding: 13px;
+          cursor: pointer; transition: all 0.2s; font-family: 'Nunito', sans-serif;
+        }
+        .btn-save:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,0.3); }
+        .btn-save:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-cancel {
+          flex: 1; background: #f5f3ff; border: 1.5px solid rgba(139,92,246,0.2);
+          border-radius: 14px; color: #7c3aed;
+          font-size: 14px; font-weight: 800; padding: 13px;
+          text-decoration: none; text-align: center; transition: all 0.2s;
+          font-family: 'Nunito', sans-serif;
+        }
+        .btn-cancel:hover { background: #ede9fe; }
+        .loading-screen {
+          min-height: 100vh; display: flex; align-items: center; justify-content: center;
+          font-family: 'Nunito', sans-serif; background: #f0f4ff;
+          font-size: 16px; font-weight: 700; color: #7c3aed;
+        }
+      `}</style>
 
-      {/* Form */}
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Item Name */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">
-              Item Name *
-            </label>
-            <input
-              type="text"
-              value={itemName}
-              onChange={(e) => setItemName(e.target.value)}
-              placeholder="e.g., Blue Cotton T-shirt"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Provide additional details about the item"
-              rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            />
-          </div>
-
-          {/* Clothing Type */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">
-              Clothing Type *
-            </label>
-            <select
-              value={clothingType}
-              onChange={(e) => setClothingType(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            >
-              <option value="Clothes">Clothes</option>
-              <option value="Pants">Pants</option>
-              <option value="Skirt">Skirt</option>
-              <option value="Dress">Dress</option>
-            </select>
-          </div>
-
-          {/* Gender */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">
-              Gender
-            </label>
-            <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            >
-              <option value="Unisex">Unisex</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
-
-          {/* Age Group */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">
-              Age Group
-            </label>
-            <select
-              value={ageGroup}
-              onChange={(e) => setAgeGroup(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            >
-              <option value="Adult">Adult</option>
-              <option value="Girl">Girl</option>
-              <option value="Elderly">Elderly</option>
-            </select>
-          </div>
-
-          {/* Sub Type */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">
-              Sub Type (Optional)
-            </label>
-            <select
-              value={subType}
-              onChange={(e) => setSubType(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            >
-              <option value="">Select sub type</option>
-              <option value="Long pants">Long pants</option>
-              <option value="Short pants">Short pants</option>
-              <option value="Long sleeve">Long sleeve</option>
-              <option value="Short sleeve">Short sleeve</option>
-              <option value="Long skirt">Long skirt</option>
-              <option value="Short skirt">Short skirt</option>
-            </select>
-          </div>
-
-          {/* Buttons */}
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg transition disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
+      {loading ? (
+        <div className="loading-screen">Loading item data...</div>
+      ) : (
+        <div className="dash-root">
+          {/* Sidebar */}
+          <div className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
+            <div style={{ width: '100%' }}>
+              <div className="sidebar-logo-row">
+                {isSidebarOpen && <span className="sidebar-logo">ACDW System</span>}
+                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="hamburger-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" style={{ width: 16, height: 16 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                  </svg>
+                </button>
+              </div>
+              <nav>
+                <Link href="/dashboard" className="nav-link"><span className="nav-icon">🏠</span>{isSidebarOpen && <span>Dashboard</span>}</Link>
+                <Link href="/profile" className="nav-link"><span className="nav-icon">👤</span>{isSidebarOpen && <span>Account Profile</span>}</Link>
+                <Link href="/upload" className="nav-link"><span className="nav-icon">📸</span>{isSidebarOpen && <span>Upload & AI Classify</span>}</Link>
+                <Link href="/items" className="nav-link active"><span className="nav-icon">📦</span>{isSidebarOpen && <span>Browse Items</span>}</Link>
+                <Link href="/distribution-records" className="nav-link"><span className="nav-icon">🚚</span>{isSidebarOpen && <span>Distribution Records</span>}</Link>
+              </nav>
+            </div>
+            <button onClick={() => { logout(); router.push('/login'); }} className="logout-btn">
+              <span className="nav-icon">🚪</span>
+              {isSidebarOpen && <span>Logout</span>}
             </button>
-            <Link
-              href="/items"
-              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 rounded-lg text-center transition"
-            >
-              Cancel
-            </Link>
           </div>
-        </form>
-      </div>
-    </div>
+
+          {/* Main */}
+          <div className="main-area">
+            <div className="page-header">
+              <div className="page-title">Edit Item</div>
+              <div className="page-sub">Update clothing item classification and details.</div>
+            </div>
+
+            <div className="form-card">
+              {error && <div className="alert-error">{error}</div>}
+              {success && <div className="alert-success">{success}</div>}
+
+              <form onSubmit={handleSubmit}>
+                <div className="section-label">Item Details</div>
+                <div style={{ marginBottom: 16 }}>
+                  <label className="field-label">Item Name *</label>
+                  <input type="text" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="e.g., Blue Cotton T-shirt" className="field-input" />
+                </div>
+                <div style={{ marginBottom: 24 }}>
+                  <label className="field-label">Description</label>
+                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Provide additional details about the item" rows={3} className="field-input" style={{ resize: 'vertical' }} />
+                </div>
+
+                <hr className="divider" />
+                <div className="section-label">Classification</div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                  <div>
+                    <label className="field-label">Clothing Type *</label>
+                    <select value={clothingType} onChange={(e) => setClothingType(e.target.value)} className="field-input">
+                      <option value="Clothes">Clothes</option>
+                      <option value="Pants">Pants</option>
+                      <option value="Skirt">Skirt</option>
+                      <option value="Dress">Dress</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="field-label">Sub Type</label>
+                    <select value={subType} onChange={(e) => setSubType(e.target.value)} className="field-input">
+                      <option value="">Select sub type</option>
+                      <option value="Long pants">Long pants</option>
+                      <option value="Short pants">Short pants</option>
+                      <option value="Long sleeve">Long sleeve</option>
+                      <option value="Short sleeve">Short sleeve</option>
+                      <option value="Long skirt">Long skirt</option>
+                      <option value="Short skirt">Short skirt</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="field-label">Gender</label>
+                    <select value={gender} onChange={(e) => setGender(e.target.value)} className="field-input">
+                      <option value="Unisex">Unisex</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="field-label">Age Group</label>
+                    <select value={ageGroup} onChange={(e) => setAgeGroup(e.target.value)} className="field-input">
+                      <option value="Adult">Adult</option>
+                      <option value="Girl">Girl</option>
+                      <option value="Elderly">Elderly</option>
+                    </select>
+                  </div>
+                </div>
+
+                <hr className="divider" />
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button type="submit" disabled={saving} className="btn-save">
+                    {saving ? 'Saving...' : '💾 Save Changes'}
+                  </button>
+                  <Link href="/items" className="btn-cancel">Cancel</Link>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
