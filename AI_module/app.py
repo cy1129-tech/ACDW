@@ -55,4 +55,6 @@ def health():
     return jsonify({'status': 'AI server running'}), 200
 
 if __name__ == '__main__':
-    app.run(port=8000, debug=True)
+    # 自动读取 Render 分配的端口，如果没有（比如在本地）则默认用 8000
+    port = int(os.environ.get('PORT', 8000))
+    app.run(host='0.0.0.0', port=port, debug=True)
