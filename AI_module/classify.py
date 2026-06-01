@@ -1,76 +1,73 @@
 # AI_module/classify.py
 import os
 import json
+import re
 import google.generativeai as genai
 from PIL import Image
 
-# 自动抓取你们在 Render 后台填写的谷歌钥匙
 GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
 
 def classify(image_path, gender=None, age_group=None, sub_type=None):
-    """
-    云端大模型无敌精准分析引擎 (平替 CLIP)
-    利用 Gemini Vision 零内存消耗实现超越 99% 的时装识别率
-    """
     try:
-        # 1. 如果没有配置 API KEY，走轻量兜底
         if not GOOGLE_API_KEY:
-            raise ValueError("GEMINI_API_KEY not configured in environment")
+            raise ValueError("GEMINI_API_KEY not configured")
 
-        # 2. 加载图片并呼叫谷歌超视觉大模型
         img = Image.open(image_path).convert('RGB')
         model = genai.GenerativeModel('gemini-2.5-flash')
 
-        # 3. 喂给大模型极其严格的结构化 Prompt，保证返回格式跟你们前端完全契合
+        # 1. 极其严厉、毫无歧义的 Prompt 指挥官
         prompt = """
-        You are a fashion expert. Analyze this clothing image and return a JSON object with the exact keys and valid values:
-        {
-          "clothing_type": "Must be one of: Clothes, Pants, Skirt, Dress",
-          "sub_type": "Must align with type: 'Long sleeve' or 'Short sleeve' (for Clothes); 'Long pants' or 'Short pants' (for Pants); 'Long skirt' or 'Short skirt' (for Skirt); 'Dress' (for Dress)",
-          "gender": "Must be one of: Male, Female, Unisex",
-          "age_group": "Must be one of: Adult, Children"
-        }
-        Rules:
-        - If it's a skirt or dress, gender must be Female.
-        - Respond ONLY with the valid JSON object, no markdown, no code blocks, no prose.
+        Analyze this clothing image as a standard fashion catalog inventory system.
+        You must output EXACTLY a valid JSON object matching these options:
+        - clothing_type: Must be exactly one of: 'Clothes', 'Pants', 'Skirt', 'Dress'
+        - sub_type: Must be 'Short sleeve' or 'Long sleeve' (if type is Clothes); 'Long pants' or 'Short pants' (if type is Pants); 'Short skirt' or 'Long skirt' (if type is Skirt); 'Dress' (if type is Dress)
+        - gender: Must be 'Male', 'Female', or 'Unisex'. (If it is a Skirt or Dress, gender MUST be 'Female')
+        - age_group: Must be 'Adult' or 'Children'. (If it is small kids/baby clothing with cartoon designs, choose 'Children')
+
+        Output format example:
+        {"clothing_type": "Skirt", "sub_type": "Short skirt", "gender": "Female", "age_group": "Adult"}
+        
+        Respond with ONLY the raw JSON object. Do not include markdown blocks like ```json.
         """
 
         response = model.generate_content([prompt, img])
-        
-        # 4. 清理可能包裹的 markdown 标签并解析 JSON
-        clean_text = response.text.strip().replace("```json", "").replace("```", "")
-        result = json.loads(clean_text)
+        raw_text = response.text.strip()
+        print("📥 Raw Gemini Output:", raw_text)
 
-        print("🔮 Gemini Vision Cloud Result:", result)
+        # 2. 【核心升级】强效正则表达式清洗，直接抠出大括号内的 JSON 内容
+        json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+        if json_match:
+            clean_json = json_match.group(0)
+        else:
+            clean_json = raw_text
+
+        result = json.loads(clean_json)
+
+        # 3. 严格大小写修正，防止后端 findClosestMatch 认不出来
+        final_type = str(result.get('clothing_type', 'Clothes')).strip().capitalize()
+        if final_type not in ['Clothes', 'Pants', 'Skirt', 'Dress']:
+            final_type = 'Clothes'
+
         return {
-            'clothing_type': result.get('clothing_type', 'Clothes'),
-            'sub_type': result.get('sub_type', 'Short sleeve'),
-            'gender': result.get('gender', 'Unisex'),
-            'age_group': result.get('age_group', 'Adult')
+            'clothing_type': final_type,
+            'sub_type': str(result.get('sub_type', 'Short sleeve')).strip(),
+            'gender': str(result.get('gender', 'Unisex')).strip().capitalize(),
+            'age_group': str(result.get('age_group', 'Adult')).strip().capitalize()
         }
 
     except Exception as e:
-        print(f"💡 Gemini Cloud Fallback activated due to: {e}")
-        # 如果大模型偶然超时，安全降级回文件名关键词判断，确保系统永不崩溃
+        print(f"❌ Smart Cloud Fallback activated due to error: {e}")
+        # 降级回精准关键词判断，兜底也不至于全错
         filename = os.path.basename(image_path).lower()
-        predicted_type = "Clothes"
-        predicted_sub = "Short sleeve"
-        
-        if 'pant' in filename or 'shorts' in filename:
-            predicted_type = "Pants"
-            predicted_sub = "Short pants" if "short" in filename else "Long pants"
-        elif 'skirt' in filename:
-            predicted_type = "Skirt"
-            predicted_sub = "Short skirt" if "short" in filename else "Long skirt"
+        t, s, g, a = "Clothes", "Short sleeve", "Unisex", "Adult"
+        if 'skirt' in filename:
+            t, s, g = "Skirt", "Short skirt", "Female"
+        elif 'pant' in filename or 'short' in filename:
+            t, s = "Pants", "Long pants" if "long" in filename else "Short pants"
         elif 'dress' in filename:
-            predicted_type = "Dress"
-            predicted_sub = "Dress"
-            
-        return {
-            'clothing_type': predicted_type,
-            'sub_type': predicted_sub,
-            'gender': gender if gender else 'Unisex',
-            'age_group': age_group if age_group else 'Adult'
-        }
+            t, s, g = "Dress", "Dress", "Female"
+        elif 'kid' in filename or 'baby' in filename or 'child' in filename:
+            a = "Children"
+        return {'clothing_type': t, 'sub_type': s, 'gender': g, 'age_group': a}
