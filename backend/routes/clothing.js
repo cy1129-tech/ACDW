@@ -62,7 +62,7 @@ function mapToValidENUMs(aiResult) {
         'Pants': ['Long pants', 'Short pants'],
         'Clothes': ['Long sleeve', 'Short sleeve'],
         'Skirt': ['Long skirt', 'Short skirt'],
-        'Dress': []
+        'Dress': ['Dress']
     };
 
     function findClosestMatch(value, validList) {
@@ -104,16 +104,20 @@ function mapToValidENUMs(aiResult) {
 // Route 1: Upload image + AI classify
 router.post('/upload', verifyToken, upload.single('image'), async (req, res) => {
     try {
-        const { item_name, description } = req.body;
-        if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
-        const imagePath = req.file.path;
+        const { item_name, description, image_base64 } = req.body;
+        
+        // 💡 如果前端传了 Base64 文本，直接用它；如果没有，才退化去读临时文件
+        let finalBase64 = image_base64;
+        if (!finalBase64 && req.file) {
+            const imageBuffer = fs.readFileSync(req.file.path);
+            finalBase64 = imageBuffer.toString('base64');
+        }
 
-       const imageBuffer = fs.readFileSync(imagePath);
-        const base64Image = imageBuffer.toString('base64');
+        if (!finalBase64) return res.status(400).json({ error: 'No image data clear' });
 
-        // 用最纯粹的 JSON 包裹图片和原始参数，绝对不会在云端丢失数据
+        // 发送给 Python AI 服务
         const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, {
-            image: base64Image,
+            image: finalBase64,
             gender: req.body.gender || 'Unisex',
             age_group: req.body.age_group || 'Adult'
         });
@@ -131,7 +135,7 @@ router.post('/upload', verifyToken, upload.single('image'), async (req, res) => 
               clothing_type, sub_type, combined_label,
               priority, image_path, organization_name)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [item_name || 'Clothing Item', description || '', mappedValues.gender, mappedValues.age_group, mappedValues.clothing_type, mappedValues.sub_type, combinedLabel, mappedValues.priority, imagePath, req.orgName],
+            [item_name || 'Clothing Item', description || '', mappedValues.gender, mappedValues.age_group, mappedValues.clothing_type, mappedValues.sub_type, combinedLabel, mappedValues.priority, req.file ? req.file.path : '', req.orgName],
             (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
                 res.status(201).json({ message: 'Clothing uploaded and classified ✅', item_id: result.insertId, ai_result: mappedValues });

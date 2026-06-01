@@ -126,29 +126,45 @@ export async function uploadAndClassifyImage(
   age_group?: string,
   sub_type?: string
 ) {
-  const formData = new FormData();
-  formData.append('image', file);
-  formData.append('item_name', item_name);
-  formData.append('description', description);
-  if (gender) formData.append('gender', gender);
-  if (age_group) formData.append('age_group', age_group);
-  if (sub_type) formData.append('sub_type', sub_type);
+  const toBase64 = (f: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(f);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
 
-  const headers: any = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  try {
+    const base64Image = await toBase64(file);
+
+    // 💡 保持 FormData 格式，让后端的 Multer 顺畅通关
+    const formData = new FormData();
+    // 把 Base64 字符串当做普通文本字段 append 进去！
+    formData.append('image_base64', base64Image); 
+    formData.append('item_name', item_name);
+    formData.append('description', description);
+    formData.append('gender', gender || 'Unisex');
+    formData.append('age_group', age_group || 'Adult');
+    if (sub_type) formData.append('sub_type', sub_type);
+
+    const headers: any = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // 使用原生的 fetch 发送表单，千万不要带 'Content-Type': 'application/json'
+    const response = await fetch(`${API_URL}/clothing/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Upload failed');
+    return data;
+
+  } catch (error) {
+    console.error("❌ Front-end Error:", error);
+    throw error;
   }
-
-  const response = await fetch(`${API_URL}/clothing/upload`, {
-    method: 'POST',
-    headers,
-    body: formData,
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Upload failed');
-  }
-
-  return data;
 }
