@@ -24,10 +24,7 @@ backend/.env
 *.zip
 dataset/
 **/dataset/
-uploads/
-**/uploads/
-AI_module/uploads/
-backend/uploads/
+
 
 # 过滤操作系统和 VS Code 的缓存垃圾
 .DS_Store
