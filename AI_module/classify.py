@@ -27,27 +27,124 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
         img = Image.open(image_path).convert('RGB')
         
         # 2. 呼叫大模型进行高精度看图
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        
-        prompt = """
-        You are a fashion catalog inventory auditor. Analyze this clothing image carefully.
-        You MUST return ONLY a raw, valid JSON object matching these exact keys and options:
-        {
-          "clothing_type": "Must be exactly one of: Clothes, Pants, Skirt, Dress",
-          "sub_type": "Must be: 'Long sleeve' or 'Short sleeve' (if type is Clothes); 'Long pants' or 'Short pants' (if type is Pants); 'Short skirt' or 'Long skirt' (if type is Skirt); 'Dress' (if type is Dress)",
-          "gender": "Must be exactly one of: Male, Female, Unisex",
-          "age_group": "Must be exactly one of: Adult, Children"
+        generation_config = {
+            "temperature": 0,
+            "top_p": 0.1,
+            "top_k": 1,
+            "max_output_tokens": 256
         }
-        
-        CRITICAL ACCURACY DETECTION RULES:
-        - LOOK AT THE SLEEVES: If it has fabric covering the entire arms down to the wrists (like a checkered long-sleeve shirt, jacket, winter coat, blazer, suit), it is "Long sleeve". 
-        - If it is a T-shirt, polo, or tank top, it is "Short sleeve".
-        - If it is a full-body dress or gown, set clothing_type to "Dress" and sub_type to "Dress".
-        - If it is a skirt or dress, gender MUST be "Female".
-        - If the item is for small toddlers/babies, features cartoon characters (like bunnies, smiles, etc.), age_group MUST be "Children".
-        
-        Respond with ONLY the raw JSON. Do not wrap in markdown or blockquotes like ```json.
-        """
+
+        model = genai.GenerativeModel(
+            model_name='gemini-2.5-flash',
+            generation_config=generation_config
+        )
+        prompt = """"
+                You are an inventory classification AI for a clothing donation system.
+
+                Your task is to classify ONLY the visible clothing item in the image.
+
+                Return ONLY valid JSON.
+
+                {
+                "clothing_type":"",
+                "sub_type":"",
+                "gender":"",
+                "age_group":""
+                }
+
+                Allowed clothing_type values:
+                - Clothes
+                - Pants
+                - Skirt
+                - Dress
+
+                Allowed gender values:
+                - Male
+                - Female
+                - Unisex
+
+                Allowed age_group values:
+                - Adult
+                - Children
+
+                Classification Rules:
+
+                STEP 1: Determine clothing_type.
+
+                Dress:
+                - Full-body one-piece garment
+
+                Skirt:
+                - Lower-body garment only
+
+                Pants:
+                - Long pants or shorts
+
+                Clothes:
+                - T-shirt
+                - Shirt
+                - Polo
+                - Hoodie
+                - Jacket
+                - Sweater
+                - Coat
+                - Blazer
+
+                STEP 2: Determine sub_type.
+
+                For Clothes:
+                - Long sleeve
+                - Short sleeve
+
+                For Pants:
+                - Long pants
+                - Short pants
+
+                For Skirt:
+                - Long skirt
+                - Short skirt
+
+                For Dress:
+                - Dress
+
+                Rules:
+
+                - Jackets are Long sleeve
+                - Hoodies are Long sleeve
+                - Sweaters are Long sleeve
+                - Blazers are Long sleeve
+                - Coats are Long sleeve
+                - Checkered shirts with sleeves reaching wrists are Long sleeve
+
+                STEP 3: Determine gender.
+
+                Rules:
+
+                - Dress => Female
+                - Skirt => Female
+
+                If gender cannot be confidently determined:
+                return Unisex
+
+                STEP 4: Determine age_group.
+
+                Return Children ONLY if there is strong visual evidence:
+                - toddler proportions
+                - baby clothing
+                - clearly children's garment
+
+                Otherwise return Adult.
+
+                IMPORTANT:
+
+                Never guess.
+
+                When uncertain:
+                - gender = Unisex
+                - age_group = Adult
+
+                Return ONLY raw JSON.
+                """
 
         # 💡 【高稳定适配器】：使用最新 SDK 标准语法生成内容
         response = model.generate_content([prompt, img])
@@ -93,9 +190,7 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
                 # 针对你的格子长袖衬衫做精准防御
                 t, s = "Clothes", "Long sleeve"
                 
-            # 针对蓝天笑脸童装 T 恤做精准防御
-            if 'club' in filename or 'day' in filename or 'fun' in filename or 'child' in filename or 'kid' in filename:
-                a = "Children"
+         
         except Exception as img_err:
             print(f"Img metadata fetch note: {img_err}")
 
