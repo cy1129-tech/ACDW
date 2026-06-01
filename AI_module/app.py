@@ -20,11 +20,14 @@ def classify_route():
         return jsonify({'error': 'No image data received'}), 400
 
     try:
-        # 2. 将无损的 Base64 字符串解码回图片二进制数据
+        # 将无损的 Base64 字符串解码回图片二进制数据
         image_data = base64.b64decode(data['image'])
         
-        # 3. 在云端服务器生成一张临时图片文件，供后面的 PIL 和 Gemini 引擎读取
-        path = os.path.join(UPLOAD_FOLDER, "cloud_upload.jpg")
+        # 💡 【核心修改】：加上动态时间戳，防止多张图片在线上互相覆盖污染
+        import time
+        unique_filename = f"cloud_upload_{int(time.time() * 1000)}.jpg"
+        path = os.path.join(UPLOAD_FOLDER, unique_filename)
+        
         with open(path, "wb") as f:
             f.write(image_data)
             
@@ -47,9 +50,15 @@ def classify_route():
 
     # 6. 执行你们原有的规则修正引擎
     result = apply_rules(result)
+
+    # deelte temporary img
+    if os.path.exists(path):
+        os.remove(path)
     
     print("⚡ AI SERVER TRULY ANALYZED & RETURNING TO NODEJS:", result)
     return jsonify(result), 200
+    
+
 # ==============================================================================
 
 # Route 2 — Recommendations
