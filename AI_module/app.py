@@ -5,26 +5,33 @@ from rule_based import apply_rules
 from heuristic  import recommend
 import os
 import base64
+import time
+import re
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# ==================== 🛠️ 这里就是被整体升级的 Classify 路由 ====================
 @app.route('/classify', methods=['POST'])
 def classify_route():
-    # 1. 放弃原先的 request.files 接收方式，改用安全的 JSON 接收 Base64 字符串
     data = request.get_json()
     if not data or 'image' not in data:
         return jsonify({'error': 'No image data received'}), 400
 
     try:
-        # 将无损的 Base64 字符串解码回图片二进制数据
-        image_data = base64.b64decode(data['image'])
+        raw_b64 = str(data['image'])
         
-        # 💡 【核心修改】：加上动态时间戳，防止多张图片在线上互相覆盖污染
-        import time
+        # 💡 【无敌清洗点】：自动砍掉类似 "data:image/jpeg;base64," 的前端包裹头
+        if "," in raw_b64:
+            raw_b64 = raw_b64.split(",")[1]
+            
+        # 移除非法空格和换行
+        raw_b64 = re.sub(r'\s+', '', raw_b64)
+        
+        # 解码无损二进制流
+        image_data = base64.b64decode(raw_b64)
+        
         unique_filename = f"cloud_upload_{int(time.time() * 1000)}.jpg"
         path = os.path.join(UPLOAD_FOLDER, unique_filename)
         
@@ -32,36 +39,25 @@ def classify_route():
             f.write(image_data)
             
     except Exception as e:
-        print(f"❌ Python Base64 Decode Error: {e}")
-        return jsonify({'error': f'Failed to process image bytes: {e}'}), 400
+        print(f"❌ CRITICAL DECODE ERROR: {e}")
+        return jsonify({'error': f'Python Base64 Decode Failed: {e}'}), 400
 
-    # 4. 安全提取其他携带参数
-    gender    = data.get('gender',    'Unisex')
-    age_group = data.get('age_group', 'Adult')
-    sub_type  = data.get('sub_type',  None)
-
-    # 5. 呼叫真正的 AI 核心（走我们之前写好的高精度正则清洗 Gemini 大模型逻辑）
+    # 顺利进入真实大模型，绝不走任何假兜底
     result = classify(
         image_path = path,
-        gender     = gender,
-        age_group  = age_group,
-        sub_type   = sub_type
+        gender     = data.get('gender', 'Unisex'),
+        age_group  = data.get('age_group', 'Adult'),
+        sub_type   = data.get('sub_type', None)
     )
 
-    # 6. 执行你们原有的规则修正引擎
     result = apply_rules(result)
-
-    # deelte temporary img
+    
     if os.path.exists(path):
         os.remove(path)
-    
-    print("⚡ AI SERVER TRULY ANALYZED & RETURNING TO NODEJS:", result)
+        
+    print("⚡ AI SERVER TRULY ANALYZED:", result)
     return jsonify(result), 200
-    
 
-# ==============================================================================
-
-# Route 2 — Recommendations
 @app.route('/recommend', methods=['POST'])
 def recommend_route():
     data         = request.get_json()
@@ -70,12 +66,10 @@ def recommend_route():
     result       = recommend(inventory, region_needs)
     return jsonify({'recommendations': result}), 200
 
-# Route 3 — Health check
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'AI server running'}), 200
 
 if __name__ == '__main__':
-    # 自动读取 Render 分配的端口，如果没有（比如在本地）则默认用 8000
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=True)
