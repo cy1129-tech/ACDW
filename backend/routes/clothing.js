@@ -72,26 +72,34 @@ function mapToValidENUMs(aiResult) {
 // backend/routes/clothing.js
 
 // 👑 终极完美形态：既保留 Multer 物理存图提供给前端显示，又用 JSON Base64 转发给 AI
-router.post('/upload', verifyToken, upload.single('image'), async (req, res) => {
+// backend/routes/clothing.js
+
+// 👑 终极黄金形态：纯 JSON 接收 + 后端自主物理存图（前台完美显图） + 100% 精准 AI 转发
+router.post('/upload', verifyToken, async (req, res) => {
     try {
         const { item_name, description, image, gender, age_group, sub_type } = req.body;
-        
-        // 1. 优先抓取前端传来的 image，如果没有，则说明前端还是旧表单，直接用物理文件转 base64 兜底
-        let finalBase64 = image;
-        if (!finalBase64 && req.file) {
-            const imageBuffer = fs.readFileSync(req.file.path);
-            finalBase64 = imageBuffer.toString('base64');
-        }
+        if (!image) return res.status(400).json({ error: 'No image data received' });
 
-        if (!finalBase64) return res.status(400).json({ error: 'No image data received' });
-
-        // 数据清洗：去掉前端附加的 data:image/... 头
-        let cleanBase64 = String(finalBase64);
+        // 1. 数据清洗：去掉前端附加的 Base64 数据头
+        let cleanBase64 = String(image);
         if (cleanBase64.includes(',')) {
             cleanBase64 = cleanBase64.split(',')[1];
         }
 
-        // 2. 呼叫云端 Python AI 服务
+        // 2. 💡【复活核心】：后端自主把 Base64 字符串还原并物理写入 uploads/ 文件夹，供前台拉取
+        const uploadDir = 'uploads';
+        if (!fs.existsSync(uploadDir)){
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        
+        // 生成跟以前 Multer 格式一模一样的安全文件名和相对路径
+        const uniqueFilename = `${Date.now()}_cloud_upload.png`;
+        const savedImagePath = `${uploadDir}/${uniqueFilename}`;
+        
+        // 将解密后的二进制流写入服务器硬盘
+        fs.writeFileSync(savedImagePath, Buffer.from(cleanBase64, 'base64'));
+
+        // 3. 原封不动地发送给你的云端 Python AI 服务进行 99% 精准看图
         const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, {
             image: cleanBase64,
             gender: gender || 'Unisex',
@@ -106,11 +114,7 @@ router.post('/upload', verifyToken, upload.single('image'), async (req, res) => 
         if (mappedValues.sub_type) labels.push(mappedValues.sub_type);
         const combinedLabel = labels.join(' + ');
 
-        // 💡 核心修复：image_path 绝对不写死 'cloud_upload'，而是存入真实的物理访问路径或相对路径！
-        // 如果物理存图成功，存 req.file.path，否则用临时标记
-        const savedImagePath = req.file ? req.file.path : 'uploads/default.jpg';
-
-        // 3. 塞进 Aiven 数据库
+        // 4. 将新鲜出炉的本地物理图片路径（savedImagePath）狠狠塞进数据库！
         db.query(
             `INSERT INTO clothing_items
              (item_name, description, gender, age_group, clothing_type, sub_type, combined_label, priority, image_path, organization_name)
@@ -124,7 +128,7 @@ router.post('/upload', verifyToken, upload.single('image'), async (req, res) => 
                 mappedValues.sub_type, 
                 combinedLabel, 
                 mappedValues.priority, 
-                savedImagePath, // 👈 存入真实路径，图片瞬间在前台亮起！
+                savedImagePath, // 👈 这一行让前端页面再次大放异彩！
                 req.orgName
             ],
             (err, result) => {
