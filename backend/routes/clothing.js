@@ -108,10 +108,16 @@ router.post('/upload', verifyToken, upload.single('image'), async (req, res) => 
         if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
         const imagePath = req.file.path;
 
-        const formData = new FormData();
-        formData.append('image', fs.createReadStream(imagePath));
+       const imageBuffer = fs.readFileSync(imagePath);
+        const base64Image = imageBuffer.toString('base64');
 
-        const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, formData, { headers: formData.getHeaders() });
+        // 用最纯粹的 JSON 包裹图片和原始参数，绝对不会在云端丢失数据
+        const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, {
+            image: base64Image,
+            gender: req.body.gender || 'Unisex',
+            age_group: req.body.age_group || 'Adult'
+        });
+
         const aiResult = aiResponse.data;
         const mappedValues = mapToValidENUMs(aiResult);
 
