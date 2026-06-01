@@ -102,16 +102,35 @@ function mapToValidENUMs(aiResult) {
 }
 
 // Route 1: Upload image + AI classify
+// backend/routes/clothing.js -> 单独覆盖这个 /upload 接口，让本地物理文件流死灰复燃
+// backend/routes/clothing.js -> 终极完美 /upload 接口，和本地 Flask 的 request.files 100% 对齐
 router.post('/upload', verifyToken, upload.single('image'), async (req, res) => {
     try {
-        const { item_name, description } = req.body;
-        if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
-        const imagePath = req.file.path;
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image file uploaded' });
+        }
 
-        const formData = new FormData();
-        formData.append('image', fs.createReadStream(imagePath));
+        const { item_name, description, gender, age_group, sub_type } = req.body;
 
-        const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, formData, { headers: formData.getHeaders() });
+        console.log("🚀 [LOCAL] Packing real file stream into FormData for local Flask CLIP server...");
+
+        // 🟢 核心高光：使用真正的 FormData 物理文件流打包格式，100% 满足 Python 的 request.files['image']
+        const form = new FormData();
+        form.append('image', fs.createReadStream(req.file.path), {
+            filename: req.file.filename,
+            contentType: req.file.mimetype,
+        });
+        form.append('gender', gender || 'Unisex');
+        form.append('age_group', age_group || 'Adult');
+        if (sub_type) form.append('sub_type', sub_type);
+
+        // 🚀 发送请求：必须带上 form.getHeaders() 让 Axios 知道这是带文件的 FormData
+        const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, form, {
+            headers: {
+                ...form.getHeaders()
+            }
+        });
+
         const aiResult = aiResponse.data;
         const mappedValues = mapToValidENUMs(aiResult);
 
@@ -119,19 +138,34 @@ router.post('/upload', verifyToken, upload.single('image'), async (req, res) => 
         if (mappedValues.sub_type) labels.push(mappedValues.sub_type);
         const combinedLabel = labels.join(' + ');
 
+        // 3. 稳稳地存入真实的物理路径，前台瞬间大放异彩
         db.query(
             `INSERT INTO clothing_items
-             (item_name, description, gender, age_group,
-              clothing_type, sub_type, combined_label,
-              priority, image_path, organization_name)
+             (item_name, description, gender, age_group, clothing_type, sub_type, combined_label, priority, image_path, organization_name)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [item_name || 'Clothing Item', description || '', mappedValues.gender, mappedValues.age_group, mappedValues.clothing_type, mappedValues.sub_type, combinedLabel, mappedValues.priority, imagePath, req.orgName],
+            [
+                item_name || 'Clothing Item',
+                description || '',
+                mappedValues.gender,
+                mappedValues.age_group,
+                mappedValues.clothing_type,
+                mappedValues.sub_type,
+                combinedLabel,
+                mappedValues.priority,
+                req.file.path, // ✅ 本地 Multer 真实物理路径，照片百分之百能亮！
+                req.orgName
+            ],
             (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.status(201).json({ message: 'Clothing uploaded and classified ✅', item_id: result.insertId, ai_result: mappedValues });
+                res.status(201).json({ 
+                    message: 'Clothing uploaded and classified via CLIP ✅', 
+                    item_id: result.insertId, 
+                    ai_result: mappedValues 
+                });
             }
         );
     } catch (err) {
+        console.error("❌ Local Backend Route Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });

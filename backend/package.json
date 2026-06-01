@@ -12,7 +12,7 @@
   "type": "commonjs",
   "description": "",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
+    "@google/generative-ai": "^0.21.0",
     "axios": "^1.16.1",
     "bcryptjs": "^3.0.3",
     "cohere-ai": "^8.0.0",
