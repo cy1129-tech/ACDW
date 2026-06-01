@@ -1,65 +1,96 @@
-const express     = require('express')
-const router      = express.Router()
-const multer      = require('multer')
-const axios       = require('axios')
-const FormData    = require('form-data')
-const fs          = require('fs')
-const db          = require('../config/db')
-const verifyToken = require('../middleware/auth')
-require('dotenv').config()
+// backend/routes/clothing.js
+const express     = require('express');
+const router      = express.Router();
+const multer      = require('multer');
+const axios       = require('axios');
+const FormData    = require('form-data');
+const fs          = require('fs');
+const db          = require('../config/db');
+const verifyToken = require('../middleware/auth');
+require('dotenv').config();
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
     filename:    (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
-})
-const upload = multer({ storage })
+});
+const upload = multer({ storage });
+
+// Database Auto-Initialization Engine
+db.query(`
+    CREATE TABLE IF NOT EXISTS distributions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        recipient_name VARCHAR(255) NOT NULL,
+        pic_name VARCHAR(255),
+        contact VARCHAR(100),
+        email VARCHAR(255),
+        note TEXT,
+        items_count INT DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'Completed',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        organization_name VARCHAR(255) NOT NULL
+    )
+`, (err) => { if (err) console.error("Error building distributions table:", err); });
+
+db.query(`
+    CREATE TABLE IF NOT EXISTS distribution_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        distribution_id INT NOT NULL,
+        cloth_id INT NOT NULL,
+        item_name VARCHAR(255),
+        gender VARCHAR(50),
+        age_group VARCHAR(50),
+        clothing_type VARCHAR(50),
+        organization_name VARCHAR(255) NOT NULL
+    )
+`, (err) => { if (err) console.error("Error building distribution_items table:", err); });
+
 
 function correctGenderByClothing(clothingType, subType, detectedGender) {
-    if (clothingType === 'Skirt') return 'Female'
-    if (subType && typeof subType === 'string' && subType.toLowerCase().includes('skirt')) return 'Female'
-    if (clothingType === 'Dress') return 'Female'
-    return detectedGender
+    if (clothingType === 'Skirt') return 'Female';
+    if (subType && typeof subType === 'string' && subType.toLowerCase().includes('skirt')) return 'Female';
+    if (clothingType === 'Dress') return 'Female';
+    return detectedGender;
 }
 
 function mapToValidENUMs(aiResult) {
-    const validGenders = ['Female', 'Male', 'Unisex']
-    const validAgeGroups = ['Children', 'Adult']
-    const validClothingTypes = ['Pants', 'Clothes', 'Skirt', 'Dress']
-    const validPriorities = ['High', 'Medium', 'Low']
+    const validGenders = ['Female', 'Male', 'Unisex'];
+    const validAgeGroups = ['Children', 'Adult'];
+    const validClothingTypes = ['Pants', 'Clothes', 'Skirt', 'Dress'];
+    const validPriorities = ['High', 'Medium', 'Low'];
 
     const subTypesByClothing = {
         'Pants': ['Long pants', 'Short pants'],
         'Clothes': ['Long sleeve', 'Short sleeve'],
         'Skirt': ['Long skirt', 'Short skirt'],
         'Dress': []
-    }
+    };
 
     function findClosestMatch(value, validList) {
-        if (!value || validList.length === 0) return validList[0] || null
-        value = String(value).trim()
-        const exactMatch = validList.find(v => v.toLowerCase() === value.toLowerCase())
-        if (exactMatch) return exactMatch
-        const partialMatch = validList.find(v => v.toLowerCase().includes(value.toLowerCase()) || value.toLowerCase().includes(v.toLowerCase()))
-        if (partialMatch) return partialMatch
-        return validList[0] || null
+        if (!value || validList.length === 0) return validList[0] || null;
+        value = String(value).trim();
+        const exactMatch = validList.find(v => v.toLowerCase() === value.toLowerCase());
+        if (exactMatch) return exactMatch;
+        const partialMatch = validList.find(v => v.toLowerCase().includes(value.toLowerCase()) || value.toLowerCase().includes(v.toLowerCase()));
+        if (partialMatch) return partialMatch;
+        return validList[0] || null;
     }
 
-    let clothingType = findClosestMatch(aiResult.clothing_type, validClothingTypes)
-    let subType = null
-    const originalSubType = String(aiResult.sub_type || '').toLowerCase()
+    let clothingType = findClosestMatch(aiResult.clothing_type, validClothingTypes);
+    let subType = null;
+    const originalSubType = String(aiResult.sub_type || '').toLowerCase();
 
     if (originalSubType.includes('suit') || originalSubType.includes('jacket')) {
-        clothingType = 'Clothes'
-        subType = 'Long sleeve'
+        clothingType = 'Clothes';
+        subType = 'Long sleeve';
     } else {
-        const validSubTypes = subTypesByClothing[clothingType] || []
+        const validSubTypes = subTypesByClothing[clothingType] || [];
         if (validSubTypes.length > 0) {
-            subType = findClosestMatch(aiResult.sub_type, validSubTypes)
+            subType = findClosestMatch(aiResult.sub_type, validSubTypes);
         }
     }
 
-    let gender = findClosestMatch(aiResult.gender, validGenders)
-    gender = correctGenderByClothing(clothingType, subType, gender)
+    let gender = findClosestMatch(aiResult.gender, validGenders);
+    gender = correctGenderByClothing(clothingType, subType, gender);
 
     return {
         gender: gender,
@@ -67,174 +98,235 @@ function mapToValidENUMs(aiResult) {
         clothing_type: clothingType,
         sub_type: subType,
         priority: 'Medium'
-    }
+    };
 }
 
-// ─────────────────────────────────────────────────────
-// Function 3 — Upload image + AI classify (带组织隔离入库)
-// POST /api/clothing/upload
-// ─────────────────────────────────────────────────────
+// Route 1: Upload image + AI classify
 router.post('/upload', verifyToken, upload.single('image'), async (req, res) => {
     try {
-        const { item_name, description } = req.body
+        const { item_name, description } = req.body;
+        if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+        const imagePath = req.file.path;
 
-        if (!req.file) return res.status(400).json({ error: 'No image uploaded' })
-        const imagePath = req.file.path
+        const formData = new FormData();
+        formData.append('image', fs.createReadStream(imagePath));
 
-        const formData = new FormData()
-        formData.append('image', fs.createReadStream(imagePath))
+        const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, formData, { headers: formData.getHeaders() });
+        const aiResult = aiResponse.data;
+        const mappedValues = mapToValidENUMs(aiResult);
 
-        const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, formData, { headers: formData.getHeaders() })
-        const aiResult = aiResponse.data
-        const mappedValues = mapToValidENUMs(aiResult)
+        const labels = [mappedValues.gender, mappedValues.age_group, mappedValues.clothing_type];
+        if (mappedValues.sub_type) labels.push(mappedValues.sub_type);
+        const combinedLabel = labels.join(' + ');
 
-        const labels = [mappedValues.gender, mappedValues.age_group, mappedValues.clothing_type]
-        if (mappedValues.sub_type) labels.push(mappedValues.sub_type)
-        const combinedLabel = labels.join(' + ')
-
-        // 🟢 核心高光改造：入库时，把当前用户的组织名 req.orgName 强行砸进表里！
         db.query(
             `INSERT INTO clothing_items
              (item_name, description, gender, age_group,
               clothing_type, sub_type, combined_label,
               priority, image_path, organization_name)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                item_name || 'Clothing Item',
-                description || '',
-                mappedValues.gender,
-                mappedValues.age_group,
-                mappedValues.clothing_type,
-                mappedValues.sub_type,
-                combinedLabel,
-                mappedValues.priority,
-                imagePath,
-                req.orgName // 👈 绑定当前操作者的组织
-            ],
+            [item_name || 'Clothing Item', description || '', mappedValues.gender, mappedValues.age_group, mappedValues.clothing_type, mappedValues.sub_type, combinedLabel, mappedValues.priority, imagePath, req.orgName],
             (err, result) => {
-                if (err) return res.status(500).json({ error: err.message })
-
-                res.status(201).json({
-                    message: 'Clothing uploaded and classified ✅',
-                    item_id: result.insertId,
-                    ai_result: mappedValues
-                })
+                if (err) return res.status(500).json({ error: err.message });
+                res.status(201).json({ message: 'Clothing uploaded and classified ✅', item_id: result.insertId, ai_result: mappedValues });
             }
-        )
+        );
     } catch (err) {
-        console.error('❌ Error in upload:', err)
-        res.status(500).json({ error: err.message })
+        res.status(500).json({ error: err.message });
     }
-})
+});
 
-// ─────────────────────────────────────────────────────
-// Function 4 + 9 — Filter and Search (核心隔离：只准查自己组织的私有库存)
-// ─────────────────────────────────────────────────────
+// Route 2: Filter and Search Inventory Pooled Items
+// Route 2: Filter and Search Inventory Pooled Items
 router.get('/', verifyToken, (req, res) => {
-    const { type, gender, age_group, search } = req.query
+    const { type, gender, age_group, search } = req.query;
+    
+    // 🟢 FIXED: Removed the trailing semicolon (;) from inside the template string below
+    let query  = `SELECT * FROM clothing_items 
+                  WHERE organization_name = ? 
+                  AND cloth_id NOT IN (SELECT cloth_id FROM distribution_items WHERE organization_name = ?)`;
+    let params = [req.orgName, req.orgName]; 
 
-    // 🟢 终极必杀：强制加上 organization_name = ?，别组的物资看都别想看到
-    let query  = 'SELECT * FROM clothing_items WHERE organization_name = ?'
-    let params = [req.orgName] // 👈 锁死当前组织
-
-    if (type) {
-        query += ' AND clothing_type = ?'
-        params.push(type)
-    }
-    if (gender) {
-        query += ' AND gender = ?'
-        params.push(gender)
-    }
-    if (age_group) {
-        query += ' AND age_group = ?'
-        params.push(age_group)
-    }
+    if (type) { query += ' AND clothing_type = ?'; params.push(type); }
+    if (gender) { query += ' AND gender = ?'; params.push(gender); }
+    if (age_group) { query += ' AND age_group = ?'; params.push(age_group); }
     if (search) {
-        query += ` AND (item_name LIKE ? OR description LIKE ? OR combined_label LIKE ?)`
-        params.push(`%${search}%`, `%${search}%`, `%${search}%`)
+        query += ` AND (item_name LIKE ? OR description LIKE ? OR combined_label LIKE ?)`;
+        params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
-
-    query += ' ORDER BY created_at DESC'
-
+    
+    query += ' ORDER BY created_at DESC';
+    
     db.query(query, params, (err, results) => {
-        if (err) return res.status(500).json({ error: err.message })
-        res.status(200).json({ total: results.length, items: results })
-    })
-})
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json({ total: results.length, items: results });
+    });
+});
 
-// ─────────────────────────────────────────────────────
-// Function 5 — Add new cloth manually (带组织隔离入库)
-// ─────────────────────────────────────────────────────
-router.post('/', verifyToken, (req, res) => {
-    const { item_name, description, gender, age_group, clothing_type, sub_type } = req.body
-
-    if (!item_name || !clothing_type) return res.status(400).json({ error: 'Item name and clothing type are required' })
-
-    const labels = [gender || 'Unisex', age_group || 'Adult', clothing_type]
-    if (sub_type) labels.push(sub_type)
-    const combined = labels.join(' + ')
-
-    // 🟢 核心改造：手动添加时，同样强行绑定当前组织名 req.orgName
+// Route 3: Process Bulk Material Distribution Order
+router.post('/distribute', verifyToken, async (req, res) => {
+    const { recipient_name, pic_name, contact, email, note, item_ids } = req.body;
+    if (!recipient_name || !item_ids || item_ids.length === 0) {
+        return res.status(400).json({ error: 'Recipient name and items are required' });
+    }
     db.query(
-        `INSERT INTO clothing_items
-         (item_name, description, gender, age_group,
-          clothing_type, sub_type, combined_label, organization_name)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-            item_name,
-            description || '',
-            gender || 'Unisex',
-            age_group || 'Adult',
-            clothing_type,
-            sub_type || null,
-            combined || '',
-            req.orgName // 👈 绑定组织
-        ],
-        (err, result) => {
-            if (err) return res.status(500).json({ error: err.message })
-            res.status(201).json({ message: 'Clothing added successfully ✅', item_id: result.insertId })
+        'SELECT * FROM clothing_items WHERE cloth_id IN (?) AND organization_name = ?',
+        [item_ids, req.orgName],
+        (err, items) => {
+            if (err) return res.status(500).json({ error: err.message });
+            db.query(
+                `INSERT INTO distributions (recipient_name, pic_name, contact, email, note, items_count, organization_name, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Completed')`,
+                [recipient_name, pic_name || '', contact || '', email || '', note || '', items.length, req.orgName],
+                (err, distResult) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    const distributionId = distResult.insertId;
+
+                    const insertValues = items.map(item => [
+                        distributionId, item.cloth_id, item.item_name, item.gender, item.age_group, item.clothing_type, req.orgName
+                    ]);
+                    db.query(
+                        `INSERT INTO distribution_items (distribution_id, cloth_id, item_name, gender, age_group, clothing_type, organization_name)
+                         VALUES ?`,
+                        [insertValues],
+                        (err) => {
+                            if (err) return res.status(500).json({ error: err.message });
+                            res.status(201).json({ message: 'Distribution logged! 🚚', distribution_id: distributionId });
+                        }
+                    );
+                }
+            );
         }
-    )
-})
+    );
+});
 
-// ─────────────────────────────────────────────────────
-// Function 7 — Edit cloth information (加入安全屏障：只能改自己组的物资)
-// ─────────────────────────────────────────────────────
-router.put('/:id', verifyToken, (req, res) => {
-    const { item_name, description, gender, age_group, clothing_type, sub_type } = req.body
-
-    const labels = [gender || 'Unisex', age_group || 'Adult', clothing_type]
-    if (sub_type) labels.push(sub_type)
-    const combined = labels.join(' + ')
-
-    // 🟢 核心防御：除了匹配 cloth_id，还必须阻断非本组的恶意越权
+// Route 4: Fetch Historical Outbound Distribution Master Logs
+router.get('/distributions', verifyToken, (req, res) => {
     db.query(
-        `UPDATE clothing_items
-         SET item_name = ?, description = ?, gender = ?, age_group = ?,
-             clothing_type = ?, sub_type = ?, combined_label = ?
-         WHERE cloth_id = ? AND organization_name = ?`,
+        'SELECT * FROM distributions WHERE organization_name = ? ORDER BY created_at DESC',
+        [req.orgName],
+        (err, results) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(200).json(results);
+        }
+    );
+});
+
+// Route 5: Fetch Specific Items Bound to an Outbound Order via Inner Join Blueprint
+router.get('/distributions/:id/items', verifyToken, (req, res) => {
+    db.query(
+        `SELECT di.*, ci.image_path 
+         FROM distribution_items di
+         LEFT JOIN clothing_items ci ON di.cloth_id = ci.cloth_id
+         WHERE di.distribution_id = ? AND di.organization_name = ?`,
+        [req.params.id, req.orgName],
+        (err, results) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(200).json(results);
+        }
+    );
+});
+
+// Route 6: Update Recipient Profile Ledger Information Inline
+router.put('/distributions/:id', verifyToken, (req, res) => {
+    const { recipient_name, pic_name, contact, email, note } = req.body;
+    if (!recipient_name) return res.status(400).json({ error: 'Recipient name is required' });
+
+    db.query(
+        `UPDATE distributions 
+         SET recipient_name = ?, pic_name = ?, contact = ?, email = ?, note = ?
+         WHERE id = ? AND organization_name = ?`,
+        [recipient_name, pic_name || '', contact || '', email || '', note || '', req.params.id, req.orgName],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(200).json({ message: 'Distribution record updated successfully! ✅' });
+        }
+    );
+});
+
+// Route 7: Robust Two-Stage Distribution Cancellation and Stock Pool Rollback
+router.post('/distributions/:id/cancel', verifyToken, (req, res) => {
+    const distId = req.params.id;
+    const orgName = req.orgName;
+
+    db.query(
+        'SELECT cloth_id FROM distribution_items WHERE distribution_id = ? AND organization_name = ?',
+        [distId, orgName],
+        (err, items) => {
+            if (err) {
+                console.error('❌ Cancel Error Stage 1:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
+
+            db.query(
+                `UPDATE distributions SET status = 'Cancelled' WHERE id = ? AND organization_name = ?`,
+                [distId, orgName],
+                (err) => {
+                    if (err) {
+                        console.error('❌ Cancel Error Stage 2:', err.message);
+                        return res.status(500).json({ error: err.message });
+                    }
+                    
+                    db.query(
+                        `DELETE FROM distribution_items WHERE distribution_id = ? AND organization_name = ?`,
+                        [distId, orgName],
+                        (err) => {
+                            if (err) {
+                                console.error('❌ Cancel Error Stage 3:', err.message);
+                                return res.status(500).json({ error: err.message });
+                            }
+                            
+                            res.status(200).json({ 
+                                message: 'Distribution cancelled successfully. All items rolled back to active inventory! ↩️' 
+                            });
+                        }
+                    );
+                }
+            );
+        }
+    );
+});
+
+// Route 8: Manual Add Inventory Item
+router.post('/', verifyToken, (req, res) => {
+    const { item_name, description, gender, age_group, clothing_type, sub_type } = req.body;
+    if (!item_name || !clothing_type) return res.status(400).json({ error: 'Item name and clothing type are required' });
+    const labels = [gender || 'Unisex', age_group || 'Adult', clothing_type];
+    if (sub_type) labels.push(sub_type);
+    const combined = labels.join(' + ');
+    db.query(
+        `INSERT INTO clothing_items (item_name, description, gender, age_group, clothing_type, sub_type, combined_label, organization_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [item_name, description || '', gender || 'Unisex', age_group || 'Adult', clothing_type, sub_type || null, combined || '', req.orgName],
+        (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ message: 'Clothing added successfully ✅', item_id: result.insertId });
+        }
+    );
+});
+
+// Route 9: Manual Edit Inventory Item Metrics
+router.put('/:id', verifyToken, (req, res) => {
+    const { item_name, description, gender, age_group, clothing_type, sub_type } = req.body;
+    const labels = [gender || 'Unisex', age_group || 'Adult', clothing_type];
+    if (sub_type) labels.push(sub_type);
+    const combined = labels.join(' + ');
+    db.query(
+        `UPDATE clothing_items SET item_name = ?, description = ?, gender = ?, age_group = ?, clothing_type = ?, sub_type = ?, combined_label = ? WHERE cloth_id = ? AND organization_name = ?`,
         [item_name, description || '', gender || 'Unisex', age_group || 'Adult', clothing_type, sub_type || null, combined || '', req.params.id, req.orgName],
         (err) => {
-            if (err) return res.status(500).json({ error: err.message })
-            res.status(200).json({ message: 'Clothing updated successfully ✅' })
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(200).json({ message: 'Clothing updated successfully ✅' });
         }
-    )
-})
+    );
+});
 
-// ─────────────────────────────────────────────────────
-// Function 6 — Delete cloth record (加入安全屏障：只能删自己组的物资)
-// ─────────────────────────────────────────────────────
+// Route 10: Delete Inventory Item Permanently From Registry
 router.delete('/:id', verifyToken, (req, res) => {
-    // 🟢 核心防御：双保险锁死组织名，防止越权删除别组数据
-    db.query(
-        'DELETE FROM clothing_items WHERE cloth_id = ? AND organization_name = ?',
-        [req.params.id, req.orgName],
-        (err) => {
-            if (err) return res.status(500).json({ error: err.message })
-            res.status(200).json({ message: 'Clothing deleted successfully ✅' })
-        }
-    )
-})
+    db.query('DELETE FROM clothing_items WHERE cloth_id = ? AND organization_name = ?', [req.params.id, req.orgName], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json({ message: 'Clothing deleted successfully ✅' });
+    });
+});
 
-router.mapToValidENUMs = mapToValidENUMs
-module.exports = router
+router.mapToValidENUMs = mapToValidENUMs;
+module.exports = router;
