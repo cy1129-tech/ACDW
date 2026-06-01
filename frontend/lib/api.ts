@@ -1,13 +1,8 @@
 // lib/api.ts
 // This file handles all communication with the backend API
-
 // frontend/lib/api.ts
-// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-
-// ✅ 替换为下面这段【智能兼容版】代码：
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_URL = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
-
 // 这样不管 process.env 后面带不带 /api，API_URL 最终都一定会完美带有 /api！
 
 // Helper function to make API calls
