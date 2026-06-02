@@ -116,7 +116,7 @@ router.post('/', verifyToken, async (req, res) => {
         }
 
         // 🟢 拼装格式化权威数据列表
-        let finalReply = `Yes, the information is mostly accurate! Here is a breakdown of the verified shelters and verified drop-off hubs in Malaysia based on recent active records:\n\n`;
+        let finalReply = `Here is a breakdown of the verified shelters and verified drop-off hubs in Malaysia based on what you required:\n\n`;
 
         if (currentRegionData.length > 0) {
             currentRegionData.slice(0, 3).forEach((item, index) => {
