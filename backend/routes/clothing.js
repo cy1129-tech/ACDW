@@ -110,7 +110,14 @@ router.post('/upload', verifyToken, upload.single('image'), async (req, res) => 
             return res.status(400).json({ error: 'No image file uploaded' });
         }
 
-        const { item_name, description, gender, age_group, sub_type } = req.body;
+// 👑 完美对齐前端小驼峰与下划线，彻底杜绝线上 500 崩溃
+        const itemNameRaw = req.body.item_name || req.body.itemName || 'Clothing Item';
+        const descriptionRaw = req.body.description || '';
+        const { gender, age_group, sub_type } = req.body || {};
+
+        // 往下走的时候，直接使用清洗干净的变量
+        const item_name = itemNameRaw;
+        const description = descriptionRaw;
 
         console.log("🚀 [LOCAL] Packing real file stream into FormData for local Flask CLIP server...");
 
