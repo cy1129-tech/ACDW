@@ -4,23 +4,19 @@ const axios = require('axios');
 const verifyToken = require('../middleware/auth');
 require('dotenv').config();
 
-// 核心：直接使用 Google 的 REST API，不再依赖容易 404 的 SDK 版本
+// 核心：直接使用生产环境 REST API，完全绕过 SDK 的版本兼容性地雷
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
-// 🌐 Serper 谷歌搜索
+// 🌐 Serper 搜索
 async function searchWeb(query) {
     try {
         const response = await axios.post(
             'https://google.serper.dev/search',
-            { q: query },
-            {
-                headers: { 'X-API-KEY': process.env.SERPER_API_KEY, 'Content-Type': 'application/json' },
-                timeout: 5000
-            }
+            { q: query, num: 5 },
+            { headers: { 'X-API-KEY': process.env.SERPER_API_KEY, 'Content-Type': 'application/json' }, timeout: 8000 }
         );
         return response.data.organic || [];
     } catch (e) {
-        console.error("⚠️ Serper error:", e.message);
         return [];
     }
 }
@@ -28,33 +24,34 @@ async function searchWeb(query) {
 // 🤖 POST /api/chatbot
 router.post('/', verifyToken, async (req, res) => {
     const { message, history } = req.body;
-    if (!message) return res.status(400).json({ error: 'Message required' });
+    if (!message) return res.status(400).json({ error: "Message required" });
 
     try {
-        // 1. 搜索数据
+        // 1. 联网搜索最新资讯
         const searchResults = await searchWeb(`${message} Malaysia charity clothing donation 2026`);
         const webContext = searchResults
             .slice(0, 4)
             .map(item => `Title: ${item.title}\nSnippet: ${item.snippet}\nLink: ${item.link}`)
             .join('\n');
 
-        // 2. 构造 Prompt (强制约束输出格式)
+        // 2. 构造 Prompt
         const prompt = `
-            You are the ACDW Charity Assistant.
+            You are SnapDonate AI, an expert Charity Assistant in Malaysia.
+            Context: ${webContext}
+            
             Rules:
-            - Based on search results: ${webContext}
-            - NEVER invent shelters.
-            - Format: 
+            - If user asks for real shelters, use the context. DO NOT invent them.
+            - Format strictly:
               1. Organisation Name: ...
               Google Maps: ...
               Required Type: ...
               Reason: ...
               Source Link: ...
-            - If user asks for table, use Markdown table format.
+            - If simple general question, answer concisely.
             - User: ${message}
         `;
 
-        // 3. 🟢 使用 axios 直连 Google API (这是绕过 404 的万能写法)
+        // 3. 🟢 使用 axios 直连 Google API (彻底解决 404 困局)
         const response = await axios.post(GEMINI_API_URL, {
             contents: [{ parts: [{ text: prompt }] }]
         });
@@ -63,9 +60,9 @@ router.post('/', verifyToken, async (req, res) => {
         res.status(200).json({ reply: aiReply });
 
     } catch (err) {
-        console.error('❌ CRITICAL Chatbot Pipeline Crash:', err.response?.data || err.message);
+        console.error('❌ API Error:', err.response?.data || err.message);
         res.status(500).json({ 
-            reply: "Our real-time intelligence gateway is experiencing a sync delay. Please specify your target Malaysian state and try again."
+            reply: "The intelligence gateway is currently refreshing. Please try again with a specific Malaysian state (e.g., Perak, Selangor) and I will provide the live registry." 
         });
     }
 });
