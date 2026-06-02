@@ -731,6 +731,7 @@ export default function DashboardPage() {
               <div className="welcome-sub">
                 Welcome back,{' '}
                 <span className="username">{user?.username || '34'}</span>
+                
                 {user?.organization_name && (
                   <> from <span className="orgname">{user.organization_name}</span></>
                 )}
