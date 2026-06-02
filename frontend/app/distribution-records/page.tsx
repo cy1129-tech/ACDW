@@ -48,17 +48,17 @@ export default function DistributionRecordsPage() {
       setLoading(true);
       const res = await axios.get(`${API_URL}/clothing/distributions`, { headers: { Authorization: `Bearer ${token}` } });
       setRecords(res.data);
-      
+     
       if (res.data.length > 0) {
         const nextActive = preserveActiveId ? res.data.find((r: any) => r.id === preserveActiveId) : res.data[0];
         if (nextActive) handleOpenDetails(nextActive);
       } else {
         setActiveRecord(null);
       }
-    } catch (e) { 
-      console.error('Failed to load records database'); 
-    } finally { 
-      setLoading(false); 
+    } catch (e) {
+      console.error('Failed to load records database');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -73,10 +73,11 @@ export default function DistributionRecordsPage() {
       note: record.note || ''
     });
     try {
-      const res = await axios.get(`http://localhost:5000/api/clothing/distributions/${record.id}/items`, { headers: { Authorization: `Bearer ${token}` } });
+      // ✅ 完美改动 1：使用规范的 ${API_URL} 替换写死的 localhost 域名！
+      const res = await axios.get(`${API_URL}/clothing/distributions/${record.id}/items`, { headers: { Authorization: `Bearer ${token}` } });
       setActiveItems(res.data);
-    } catch (e) { 
-      alert('Error parsing details stream'); 
+    } catch (e) {
+      alert('Error parsing details stream');
     }
   };
 
@@ -84,7 +85,8 @@ export default function DistributionRecordsPage() {
   const handleSaveEdit = async () => {
     if (!activeRecord) return;
     try {
-      await axios.put(`http://localhost:5000/api/clothing/distributions/${activeRecord.id}`, editForm, { headers: { Authorization: `Bearer ${token}` } });
+      // ✅ 完美改动 2：使用规范的 ${API_URL} 替换写死的 localhost 域名！
+      await axios.put(`${API_URL}/clothing/distributions/${activeRecord.id}`, editForm, { headers: { Authorization: `Bearer ${token}` } });
       alert('✅ Distribution recipient metrics updated successfully!');
       setIsEditing(false);
       fetchRecords(activeRecord.id);
@@ -98,17 +100,27 @@ export default function DistributionRecordsPage() {
     if (!activeRecord) return;
     if (!confirm('⚠️ UNDO ACTION: Are you sure you want to cancel this distribution? All garments will instantly return to inventory catalog pool.')) return;
     try {
-      await axios.post(`http://localhost:5000/api/clothing/distributions/${activeRecord.id}/cancel`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      // ✅ 完美改动 3：使用规范的 ${API_URL} 替换写死的 localhost 域名！
+      await axios.post(`${API_URL}/clothing/distributions/${activeRecord.id}/cancel`, {}, { headers: { Authorization: `Bearer ${token}` } });
       alert('↩️ Distribution cancelled and inventory successfully rolled back!');
       fetchRecords(activeRecord.id);
+      window.location.reload();
     } catch (e) {
       alert('Failed to cancel distribution log');
     }
   };
 
+  // ✅ 完美改动 4：图片解析彻底同步生产环境的静态托管路径，防范 Mixed Content！
   const getImageUrl = (path: string) => {
     if (!path) return '/placeholder-cloth.png';
-    return `http://localhost:5000/${path.replace(/\\/g, '/')}`;
+    let cleanFileName = path;
+    if (path.includes('uploads/')) {
+      // 如果后端存了带路径的名字，刮骨疗毒切出纯文件名
+      cleanFileName = path.split('uploads/').pop() || path;
+    } else if (path.includes('http://localhost:5000/')) {
+      cleanFileName = path.replace('http://localhost:5000/', '');
+    }
+    return `https://acdw-backend-node.onrender.com/uploads/${cleanFileName}`;
   };
 
   const filteredRecords = records.filter(rec => {
@@ -290,7 +302,7 @@ export default function DistributionRecordsPage() {
         .dist-item-img { width: 44px; height: 44px; min-width: 44px; border-radius: 10px; overflow: hidden; background: #f5f3ff; border: 1.5px solid rgba(139,92,246,0.1); display: flex; align-items: center; justify-content: center; }
         .dist-item-name { font-size: 13px; font-weight: 800; color: #1e1b4b; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .dist-item-meta { font-size: 10.5px; color: #9ca3af; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        
+       
         .inline-edit-input {
           width: 100%; padding: 6px 10px; border: 1.5px solid #a78bfa; border-radius: 8px;
           font-size: 12px; color: #1e1b4b; font-family: 'Nunito', sans-serif; font-weight: 700;
@@ -303,7 +315,7 @@ export default function DistributionRecordsPage() {
         .btn-drawer-edit-trigger:hover { background: #f5f3ff; }
         .btn-drawer-undo { width: 100%; margin-top: 6px; background: #fff1f2; border: 1.5px solid rgba(244,63,94,0.25); border-radius: 10px; color: #f43f5e; font-weight: 800; font-size: 12px; padding: 8px; cursor: pointer; font-family: 'Nunito', sans-serif; transition: all 0.2s; }
         .btn-drawer-undo:hover { background: #ffe4e6; }
-        
+       
         .close-panel-btn {
           width: 100%; margin-top: 10px; background: #f5f3ff;
           border: 1.5px solid rgba(139,92,246,0.15); border-radius: 12px;
@@ -394,7 +406,6 @@ export default function DistributionRecordsPage() {
                         <td className="recipient-name">{rec.recipient_name}</td>
                         <td style={{ color: '#6b7280' }}>{rec.contact || 'N/A'}</td>
                         <td style={{ color: '#6b7280' }}>{rec.items_count} items</td>
-                        {/* 🟢 功能点 1：完美输出包含 Timestamp 时分秒的完整日期格式 */}
                         <td style={{ color: '#9ca3af', fontSize: 12, whiteSpace: 'nowrap' }}>
                           {new Date(rec.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                         </td>
@@ -421,7 +432,7 @@ export default function DistributionRecordsPage() {
                       </tr>
                     )}
                   </tbody>
-                </table>
+                </table> Episcopacy
               </div>
             </div>
 
@@ -446,10 +457,9 @@ export default function DistributionRecordsPage() {
                   </div>
                 </div>
 
-                {/* 🟢 功能点 2：在面板内嵌 Inline 编辑表单体系 */}
                 <div className="recipient-info">
                   <div className="section-label" style={{ marginBottom: 12 }}>Recipient Information</div>
-                  
+                 
                   {isEditing ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <div>
@@ -491,7 +501,7 @@ export default function DistributionRecordsPage() {
                         <div style={{ fontWeight: 800, color: '#1e1b4b' }}>{activeRecord.contact || 'N/A'}</div>
                         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeRecord.email}</div>
                       </div>
-                      
+                     
                       {activeRecord.note && (
                         <div style={{ gridColumn: '1 / span 2', background: '#f9f8ff', padding: 8, borderRadius: 8, fontSize: 11, color: '#6b7280', fontStyle: 'italic', marginTop: 4 }}>
                           Note: "{activeRecord.note}"
@@ -522,7 +532,6 @@ export default function DistributionRecordsPage() {
                   ))}
                 </div>
 
-                {/* 🟢 功能点 3：撤销/退仓联动大按钮（仅在 Completed 状态下允许触发） */}
                 {activeRecord.status !== 'Cancelled' && (
                   <button onClick={handleCancelDistribution} className="btn-drawer-undo">↩️ Cancel & Undo Distribution</button>
                 )}

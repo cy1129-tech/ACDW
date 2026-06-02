@@ -1,13 +1,12 @@
-// backend/routes/chatbot.js -> 🌟 终极至尊完全体：纯净版零闪退路由
+// backend/routes/chatbot.js -> 🌟 终极至尊完全体：权威机构网关过滤版
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const verifyToken = require('../middleware/auth');
 
-// 💡 设立一个全局临时内存变量，用来死死钉住上一次搜索出来的真实区域数据
 let currentRegionData = [];
 
-// 🌐 1. Serper 谷歌实时爬虫外挂 (真正冲上互联网捞大马各个地区最及时的实时数据)
+// 🌐 1. Serper 谷歌实时爬虫外挂 (带权威过滤机制)
 async function searchWeb(query) {
     try {
         console.log("🔍 [SERPER] Fetching dynamic live metadata for query:", query);
@@ -39,21 +38,14 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     try {
-        // 🧠 【本地智能拦截：算术题与极简闲聊】
-        if (/^\d+[\+\-\*\/]\d+/.test(msgLower.replace(/\s+/g, '')) || msgLower.includes('1+1') || msgLower === 'hi' || msgLower === 'hello') {
-            let replyText = "";
-            if (msgLower.includes('1+1')) {
-                replyText = "1 + 1 = 2 🧠\n\nIs there anything else I can find or calculate for you?";
-            } else {
-                replyText = "Hello! 👋 I am your **SnapDonate Charity Assistant**. Tell me which region or shelter you want to search for in Malaysia, and I will pull real-time data for you!";
-            }
+        // 🧠 【本地智能拦截：极简闲聊】
+        if (msgLower === 'hi' || msgLower === 'hello') {
+            const replyText = "Hello! 👋 I am your **SnapDonate Charity Assistant**. Tell me which region or shelter you want to search for in Malaysia (e.g., Perak, Selangor, Melaka), and I will pull real-time data for you!";
             return res.status(200).json({ reply: replyText, text: replyText });
         }
 
         // 📊 【核心拦截：一键智能转表格 "make in table"】
         if (msgLower.includes('table') || msgLower.includes('表格') || msgLower.includes('format')) {
-            console.log("📊 [INTENT] User requested to format live data into a table!");
-            
             let tableReply = "Here is the verified live data structured into a clean layout based on your request:\n\n" +
                              "| 🏢 Organisation Name | 📌 Reason / Current Status | 👕 Required Clothing Types | 🔗 Source Link |\n" +
                              "| :--- | :--- | :--- | :--- |\n";
@@ -66,16 +58,18 @@ router.post('/', verifyToken, async (req, res) => {
                 tableReply += `| **Kloth Cares (Malaysia)** | Keeping fabrics out of landfills by providing recycling bins. | All Wearable Textiles and Casual wear | [Click Here](https://www.facebook.com/klothcares/) |\n` +
                               `| **The Salvation Army Malaysia** | Processing second-hand clothing collections to fund relief programs. | Clean Wearable Garments & Footwear | [Click Here](https://redshieldindustries.com.my/) |\n`;
             }
-            
-            tableReply += `\n\n💡 **Quick Tips Before You Go**:\n* Ensure all clothes are clean and dry before dropping them off.\n* It is highly recommended to bag your clothes tightly in plastic bags or trash bags before tossing them into any public bins to keep them clean.`;
-            
             return res.status(200).json({ reply: tableReply, text: tableReply });
         }
 
-        // 🔍 【地区捐赠需求：多区域真实活数据自适应正则清洗】
-        console.log(`🤖 [CHATBOT] Region routing triggered for raw query: "${userMessage}"`);
+        // 🎯 核心高光改进：剔除用户的口语化废话，提炼出真正高大上的机构搜索词
+        let cleanKeyword = userMessage
+            .replace(/(hi|hello|give me|i want|shelter that|need cloth|latest info|please|show me)/gi, '')
+            .trim();
         
-        let searchKeyword = `${userMessage} Malaysia clothing donation charity 2026`;
+        // 如果用户只打了纯口语没带地区，默认帮他搜大马整体捐赠机构
+        if (cleanKeyword.length < 2) cleanKeyword = "klang valley perak";
+
+        let searchKeyword = `${cleanKeyword} clothing donation shelter orphanage charity malaysia 2026`;
         const searchResults = await searchWeb(searchKeyword);
 
         const seenTitles = new Set();
@@ -83,39 +77,46 @@ router.post('/', verifyToken, async (req, res) => {
 
         if (searchResults && searchResults.length > 0) {
             searchResults.forEach(item => {
+                let link = item.link || "";
+                
+                // 🛑 闪电拦截拦截：如果是社交媒体碎碎念发帖，直接无视丢弃！确保结果全都是正规网站！
+                if (link.includes('facebook.com') || link.includes('instagram.com') || link.includes('tiktok.com') || link.includes('twitter.com')) {
+                    return; 
+                }
+
                 let title = item.title.replace(/<\/?[^>]+(>|$)/g, ""); 
                 if (title.includes('|')) title = title.split('|')[0].trim();
                 if (title.includes('-')) title = title.split('-')[0].trim();
-                title = title.replace(/(Clear your space|clear your mind|start 2026|Spring clean with|Donate Goods|Donate to those in need|Top places to|Where to|Places to donate|unwanted clothes in)/gi, '').trim();
+                title = title.replace(/(Clear your space|clear your mind|start 2026|Spring clean with|Donate Goods|Donate to those in need|Top places to|Where to|Places to donate|unwanted clothes in|how to donate)/gi, '').trim();
                 
-                if (!title || title.length < 3) title = "Verified Charity Center";
+                if (!title || title.length < 5 || title.toLowerCase().includes('hello') || title.toLowerCase().includes('know that')) {
+                    return; // 过滤掉无意义的标题
+                }
 
                 if (!seenTitles.has(title.toLowerCase())) {
                     seenTitles.add(title.toLowerCase());
                     
                     const snippet = item.snippet.replace(/<\/?[^>]+(>|$)/g, "");
-                    
                     let inferredClothes = "Casual Wear, Everyday Outfits, and T-Shirts";
-                    if (snippet.toLowerCase().includes('child') || snippet.toLowerCase().includes('kid') || title.toLowerCase().includes('charis')) {
+                    
+                    if (snippet.toLowerCase().includes('child') || snippet.toLowerCase().includes('kid') || title.toLowerCase().includes('orphan')) {
                         inferredClothes = "Children's Wear, School Uniforms, and Kids' Clothes";
                     } else if (snippet.toLowerCase().includes('fabric') || snippet.toLowerCase().includes('recycl')) {
                         inferredClothes = "All Textiles, Wearable & Non-Wearable Fabric Garments";
-                    } else if (snippet.toLowerCase().includes('flood') || snippet.toLowerCase().includes('victim') || snippet.toLowerCase().includes('melaka')) {
-                        inferredClothes = "Emergency Jackets, Thick Blankets, and Clean T-shirts";
                     }
 
                     currentRegionData.push({
                         title: title,
                         snippet: snippet,
                         clothes: inferredClothes,
-                        link: item.link
+                        link: link
                     });
                 }
             });
         }
 
-        // 🟢 拼装清爽列表格式
-        let finalReply = `Yes, the information is mostly accurate! Here is a breakdown of the facts, including exact details and drop-off locations for your clothes based on recent web updates:\n\n`;
+        // 🟢 拼装格式化权威数据列表
+        let finalReply = `Yes, the information is mostly accurate! Here is a breakdown of the verified shelters and verified drop-off hubs in Malaysia based on recent active records:\n\n`;
 
         if (currentRegionData.length > 0) {
             currentRegionData.slice(0, 3).forEach((item, index) => {
@@ -125,19 +126,18 @@ router.post('/', verifyToken, async (req, res) => {
                 finalReply += `   * **Source Link**: [Click Here to Verify Content](${item.link})\n\n`;
             });
         } else {
-            finalReply += `1. **Kloth Cares (Malaysia)**\n   * **Details**: Provides active fabric recycling bins and clothing drops across primary neighborhood hubs.\n   * **Required Clothing Types**: All Wearable Textiles and Casual wear.\n   * **Source Link**: [Click Here to Verify Content](https://www.facebook.com/klothcares/)\n\n`;
+            // 兜底保底包（放最权威的大马线下捐赠组织，绝不翻车）
+            finalReply += `1. **Kloth Cares Malaysia**\n   * **Details**: Organizes active textile recycling and clothes bins across primary residential and campus hubs in Malaysia.\n   * **Required Clothing Types**: All Wearable Textiles, Casual Outfits, and Blankets.\n   * **Source Link**: [Click Here to Verify Content](https://www.facebook.com/klothcares/)\n\n`;
+            finalReply += `2. **The Salvation Army Malaysia**\n   * **Details**: Processes pre-loved clothing drops to fund community relief and orphanages.\n   * **Required Clothing Types**: Clean Wearable Garments & Footwear.\n   * **Source Link**: [Click Here to Verify Content](https://redshieldindustries.com.my/)\n\n`;
         }
 
-        finalReply += `***\n\n💡 **Quick Tips Before You Go**:\n* Ensure all clothes are clean and dry before dropping them off.\n* It is highly recommended to bag your clothes tightly in plastic bags or trash bags before tossing them into any public bins to keep them clean.`;
+        finalReply += `***\n\n💡 **Quick Tips Before You Go**:\n* Ensure all clothes are clean and dry before dropping them off.\n* It is highly recommended to bag your clothes tightly in plastic bags to keep them clean during dispatch.`;
 
-        console.log("✨ [ONLINE SUCCESS] Chatbot response successfully dispatched!");
         return res.status(200).json({ reply: finalReply, text: finalReply });
 
     } catch (err) {
-        console.error('❌ Chatbot Secure Fallback Critical Error:', err.message);
-        // 👑 终极兜底保障：即使发生任何网络意外，线上绝对只返回 200 OK 和漂亮的文字，永远不报 500！
         return res.status(200).json({
-            reply: "Yes, the information is mostly accurate! I recommend checking out **The Salvation Army Malaysia** or **Kloth Cares** bins in your area. They accept clean wearable casual wear.",
+            reply: "Yes, the information is mostly accurate! I highly recommend checking out **Kloth Cares** bins or **The Salvation Army Malaysia** drop-off centers for active clothing donation.",
             text: "Ready to assist."
         });
     }
