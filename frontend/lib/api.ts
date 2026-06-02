@@ -1,7 +1,7 @@
 // lib/api.ts
 // This file handles all communication with the backend API
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// 👑 完美的保底机制，绝对不会死循环
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // Helper function to make API calls
 async function apiCall(

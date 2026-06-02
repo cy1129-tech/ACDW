@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
+import { API_URL } from '@/lib/api';
 
 interface DistRecord {
   id: number;
@@ -45,7 +46,7 @@ export default function DistributionRecordsPage() {
   const fetchRecords = async (preserveActiveId?: number) => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:5000/api/clothing/distributions', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/clothing/distributions`, { headers: { Authorization: `Bearer ${token}` } });
       setRecords(res.data);
       
       if (res.data.length > 0) {

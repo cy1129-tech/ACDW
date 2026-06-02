@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
+import { API_URL } from '@/lib/api';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -46,7 +47,7 @@ export default function DashboardPage() {
 
     try {
       const response = await axios.post(
-        'http://localhost:5000/api/chatbot',
+        `${API_URL}/chatbot`,
         { message: userText, history: messages },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -731,7 +732,6 @@ export default function DashboardPage() {
               <div className="welcome-sub">
                 Welcome back,{' '}
                 <span className="username">{user?.username || '34'}</span>
-                
                 {user?.organization_name && (
                   <> from <span className="orgname">{user.organization_name}</span></>
                 )}

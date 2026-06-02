@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
-import { getClothingItems, deleteClothingItem } from '@/lib/api';
+import { getClothingItems, deleteClothingItem, API_URL } from '@/lib/api';
 
 interface ClothingItem {
   cloth_id: number;
@@ -304,7 +304,7 @@ export default function ItemsPage() {
     if (!distForm.recipient_name.trim()) return;
     try {
       setLoading(true);
-      await axios.post('http://localhost:5000/api/clothing/distribute', { ...distForm, item_ids: selectedIds }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${API_URL}/clothing/distribute`, { ...distForm, item_ids: selectedIds }, { headers: { Authorization: `Bearer ${token}` } });
       alert('🚚 Material distribution recorded successfully!');
       setIsDistModalOpen(false);
       setSelectedIds([]);

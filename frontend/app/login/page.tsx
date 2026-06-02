@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
+import { API_URL } from '@/lib/api';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -43,7 +44,7 @@ export default function LoginPage() {
     if (!forgotUsername || !forgotEmail) { setModalError('Please fill in all fields'); return; }
     setModalLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/forgot-password', { username: forgotUsername, email: forgotEmail });
+      const response = await axios.post(`${API_URL}/auth/forgot-password`, { username: forgotUsername, email: forgotEmail });
       if (response.data.success) {
         setModalMessage('✅ Temporary password sent! Please check your Gmail box.');
         setForgotUsername(''); setForgotEmail('');

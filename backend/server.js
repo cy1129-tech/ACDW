@@ -24,7 +24,7 @@ const corsOptions = {
 
 // 必须放在所有路由和请求解析的前面！
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // 核心绝招：显式让所有 OPTIONS 探测请求直接秒过！
+
 
 // ==========================================
 // 3. 全局数据流解析中间件 (Body Parsers)

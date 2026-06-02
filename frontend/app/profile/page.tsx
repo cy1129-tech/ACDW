@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
+import { API_URL } from '@/lib/api';
 
 export default function ProfilePage() {
   const { token, logout } = useAuth();
@@ -51,7 +52,7 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       const response = await axios.put(
-        'http://localhost:5000/api/auth/profile',
+        `${API_URL}/auth/profile`,
         { username, email, password: password || undefined },
         { headers: { Authorization: `Bearer ${token}` } }
       );
