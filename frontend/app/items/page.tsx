@@ -343,10 +343,19 @@ export default function ItemsPage() {
     setSelectedIds(selectedIds.includes(id) ? selectedIds.filter(sid => sid !== id) : [...selectedIds, id]);
   };
 
-  const getImageUrl = (path: string) => {
-    if (!path) return '/placeholder-cloth.png';
-    return `http://localhost:5000/${path.replace(/\\/g, '/')}`;
-  };
+ // ✅ 完美的线上/本地多环境自适应图片解析防线
+const getImageUrl = (path: string) => {
+  if (!path) return '/placeholder-cloth.png';
+  
+  // 1. 如果后端传回来的是完整的老本地域名，强行把它刮骨疗毒切成纯文件名
+  let cleanFileName = path;
+  if (path.includes('http://localhost:5000/uploads/')) {
+    cleanFileName = path.replace('http://localhost:5000/uploads/', '');
+  }
+  
+  // 2. 👑 大厂标准：统一从安全的线上 Render 生产静态网关下载图片，彻底消灭 Mixed Content 警告！
+  return `https://acdw-backend-node.onrender.com/uploads/${cleanFileName}`;
+};
 
   const getDynamicInventorySummary = () => {
     const map: { [key: string]: { gender: string; age_group: string; clothing_type: string; count: number } } = {};

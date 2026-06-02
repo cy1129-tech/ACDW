@@ -103,13 +103,14 @@ function mapToValidENUMs(aiResult) {
 
 // Route 1: Upload image + AI classify
 
+// Route 1: Upload image + AI classify
 router.post('/upload', upload.single('image'), verifyToken, async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No image file uploaded' });
         }
 
-        // 🛡️ 双保险兜底：确保即便有异常，也会是个合法的对象，彻底消灭 undefined 造成的 500 崩溃
+        // 🛡️ 双保险兜底
         const bodyData = req.body || {};
         
         const itemNameRaw = bodyData.item_name || bodyData.itemName || 'Clothing Item';
@@ -123,7 +124,7 @@ router.post('/upload', upload.single('image'), verifyToken, async (req, res) => 
 
         console.log("🚀 [ONLINE SUCCESS] FormData safely parsed. Forwarding real stream to Flask CLIP...");
 
-        // 🟢 核心高光：打包真正的 FormData 物理文件流
+        // 🟢 打包真正的 FormData 物理文件流
         const form = new FormData();
         form.append('image', fs.createReadStream(req.file.path), {
             filename: req.file.filename,
@@ -147,6 +148,9 @@ router.post('/upload', upload.single('image'), verifyToken, async (req, res) => 
         if (mappedValues.sub_type) labels.push(mappedValues.sub_type);
         const combinedLabel = labels.join(' + ');
 
+        // 👑 终极黄金修正：数据库里【只存纯文件名】，不要把 uploads/ 路径前缀带进去！
+        const finalFileName = req.file.filename; 
+
         // 存入云端/本地数据库
         db.query(
             `INSERT INTO clothing_items
@@ -161,8 +165,8 @@ router.post('/upload', upload.single('image'), verifyToken, async (req, res) => 
                 mappedValues.sub_type,
                 combinedLabel,
                 mappedValues.priority,
-                req.file.path, 
-                req.orgName // 来自 verifyToken 成功挂载的机构名
+                finalFileName, // 👈 核心改变：以前是 req.file.path，现在换成纯文件名 finalFileName！
+                req.orgName 
             ],
             (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
@@ -178,8 +182,6 @@ router.post('/upload', upload.single('image'), verifyToken, async (req, res) => 
         res.status(500).json({ error: err.message });
     }
 });
-
-// Route 2: Filter and Search Inventory Pooled Items
 // Route 2: Filter and Search Inventory Pooled Items
 router.get('/', verifyToken, (req, res) => {
     const { type, gender, age_group, search } = req.query;
