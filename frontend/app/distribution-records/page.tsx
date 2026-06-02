@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
-import { API_URL } from '@/lib/api';
+import { API_URL, getSharedImageUrl } from '@/lib/api';
 
 interface DistRecord {
   id: number;
@@ -73,7 +73,6 @@ export default function DistributionRecordsPage() {
       note: record.note || ''
     });
     try {
-      // ✅ 完美改动 1：使用规范的 ${API_URL} 替换写死的 localhost 域名！
       const res = await axios.get(`${API_URL}/clothing/distributions/${record.id}/items`, { headers: { Authorization: `Bearer ${token}` } });
       setActiveItems(res.data);
     } catch (e) {
@@ -85,7 +84,6 @@ export default function DistributionRecordsPage() {
   const handleSaveEdit = async () => {
     if (!activeRecord) return;
     try {
-      // ✅ 完美改动 2：使用规范的 ${API_URL} 替换写死的 localhost 域名！
       await axios.put(`${API_URL}/clothing/distributions/${activeRecord.id}`, editForm, { headers: { Authorization: `Bearer ${token}` } });
       alert('✅ Distribution recipient metrics updated successfully!');
       setIsEditing(false);
@@ -95,33 +93,21 @@ export default function DistributionRecordsPage() {
     }
   };
 
-  // 🟢 触发撤销/退仓处理
+  // 🟢 触发撤销/退仓处理（响应式异步静默更新，彻底干掉强制刷新闪退）
   const handleCancelDistribution = async () => {
     if (!activeRecord) return;
     if (!confirm('⚠️ UNDO ACTION: Are you sure you want to cancel this distribution? All garments will instantly return to inventory catalog pool.')) return;
     try {
-      // ✅ 完美改动 3：使用规范的 ${API_URL} 替换写死的 localhost 域名！
       await axios.post(`${API_URL}/clothing/distributions/${activeRecord.id}/cancel`, {}, { headers: { Authorization: `Bearer ${token}` } });
       alert('↩️ Distribution cancelled and inventory successfully rolled back!');
-      fetchRecords(activeRecord.id);
-      window.location.reload();
+      fetchRecords(activeRecord.id); // 👈 完美留在这里静默回刷
     } catch (e) {
       alert('Failed to cancel distribution log');
     }
   };
 
-  // ✅ 完美改动 4：图片解析彻底同步生产环境的静态托管路径，防范 Mixed Content！
-  const getImageUrl = (path: string) => {
-    if (!path) return '/placeholder-cloth.png';
-    let cleanFileName = path;
-    if (path.includes('uploads/')) {
-      // 如果后端存了带路径的名字，刮骨疗毒切出纯文件名
-      cleanFileName = path.split('uploads/').pop() || path;
-    } else if (path.includes('http://localhost:5000/')) {
-      cleanFileName = path.replace('http://localhost:5000/', '');
-    }
-    return `https://acdw-backend-node.onrender.com/uploads/${cleanFileName}`;
-  };
+  // ✅ 完美的线上/本地多环境自适应图片解析防线之一键调用核心
+  const getImageUrl = (path: string) => getSharedImageUrl(path);
 
   const filteredRecords = records.filter(rec => {
     const matchesSearch = rec.recipient_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -300,6 +286,7 @@ export default function DistributionRecordsPage() {
         .dist-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid rgba(139,92,246,0.06); }
         .dist-item:last-child { border-bottom: none; }
         .dist-item-img { width: 44px; height: 44px; min-width: 44px; border-radius: 10px; overflow: hidden; background: #f5f3ff; border: 1.5px solid rgba(139,92,246,0.1); display: flex; align-items: center; justify-content: center; }
+        .dist-item-img img { width: 100%; height: 100%; object-fit: contain; padding: 3px; }
         .dist-item-name { font-size: 13px; font-weight: 800; color: #1e1b4b; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .dist-item-meta { font-size: 10.5px; color: #9ca3af; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
        
@@ -432,7 +419,7 @@ export default function DistributionRecordsPage() {
                       </tr>
                     )}
                   </tbody>
-                </table> Episcopacy
+                </table>
               </div>
             </div>
 
@@ -522,7 +509,7 @@ export default function DistributionRecordsPage() {
                   {activeItems.map((item, idx) => (
                     <div key={idx} className="dist-item">
                       <div className="dist-item-img">
-                        <img src={getImageUrl(item.image_path)} alt={item.item_name} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 3 }} onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/100?text=?'; }} />
+                        <img src={getImageUrl(item.image_path)} alt={item.item_name} onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/100?text=?'; }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="dist-item-name">{item.item_name}</div>
