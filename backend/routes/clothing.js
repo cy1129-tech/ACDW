@@ -102,36 +102,38 @@ function mapToValidENUMs(aiResult) {
 }
 
 // Route 1: Upload image + AI classify
-// backend/routes/clothing.js -> 单独覆盖这个 /upload 接口，让本地物理文件流死灰复燃
-// backend/routes/clothing.js -> 终极完美 /upload 接口，和本地 Flask 的 request.files 100% 对齐
-router.post('/upload', verifyToken, upload.single('image'), async (req, res) => {
+
+router.post('/upload', upload.single('image'), verifyToken, async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No image file uploaded' });
         }
 
-// 👑 完美对齐前端小驼峰与下划线，彻底杜绝线上 500 崩溃
-        const itemNameRaw = req.body.item_name || req.body.itemName || 'Clothing Item';
-        const descriptionRaw = req.body.description || '';
-        const { gender, age_group, sub_type } = req.body || {};
+        // 🛡️ 双保险兜底：确保即便有异常，也会是个合法的对象，彻底消灭 undefined 造成的 500 崩溃
+        const bodyData = req.body || {};
+        
+        const itemNameRaw = bodyData.item_name || bodyData.itemName || 'Clothing Item';
+        const descriptionRaw = bodyData.description || '';
+        const gender = bodyData.gender || 'Unisex';
+        const age_group = bodyData.age_group || 'Adult';
+        const sub_type = bodyData.sub_type || null;
 
-        // 往下走的时候，直接使用清洗干净的变量
         const item_name = itemNameRaw;
         const description = descriptionRaw;
 
-        console.log("🚀 [LOCAL] Packing real file stream into FormData for local Flask CLIP server...");
+        console.log("🚀 [ONLINE SUCCESS] FormData safely parsed. Forwarding real stream to Flask CLIP...");
 
-        // 🟢 核心高光：使用真正的 FormData 物理文件流打包格式，100% 满足 Python 的 request.files['image']
+        // 🟢 核心高光：打包真正的 FormData 物理文件流
         const form = new FormData();
         form.append('image', fs.createReadStream(req.file.path), {
             filename: req.file.filename,
             contentType: req.file.mimetype,
         });
-        form.append('gender', gender || 'Unisex');
-        form.append('age_group', age_group || 'Adult');
+        form.append('gender', gender);
+        form.append('age_group', age_group);
         if (sub_type) form.append('sub_type', sub_type);
 
-        // 🚀 发送请求：必须带上 form.getHeaders() 让 Axios 知道这是带文件的 FormData
+        // 发送请求给你的 Flask CLIP 服务
         const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, form, {
             headers: {
                 ...form.getHeaders()
@@ -145,22 +147,22 @@ router.post('/upload', verifyToken, upload.single('image'), async (req, res) => 
         if (mappedValues.sub_type) labels.push(mappedValues.sub_type);
         const combinedLabel = labels.join(' + ');
 
-        // 3. 稳稳地存入真实的物理路径，前台瞬间大放异彩
+        // 存入云端/本地数据库
         db.query(
             `INSERT INTO clothing_items
              (item_name, description, gender, age_group, clothing_type, sub_type, combined_label, priority, image_path, organization_name)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                item_name || 'Clothing Item',
-                description || '',
+                item_name,
+                description,
                 mappedValues.gender,
                 mappedValues.age_group,
                 mappedValues.clothing_type,
                 mappedValues.sub_type,
                 combinedLabel,
                 mappedValues.priority,
-                req.file.path, // ✅ 本地 Multer 真实物理路径，照片百分之百能亮！
-                req.orgName
+                req.file.path, 
+                req.orgName // 来自 verifyToken 成功挂载的机构名
             ],
             (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
@@ -172,7 +174,7 @@ router.post('/upload', verifyToken, upload.single('image'), async (req, res) => 
             }
         );
     } catch (err) {
-        console.error("❌ Local Backend Route Error:", err.message);
+        console.error("❌ Online Backend Route Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
