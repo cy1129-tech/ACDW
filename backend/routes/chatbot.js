@@ -28,48 +28,48 @@ async function searchWeb(query) {
 }
 
 // 🤖 2. POST /api/chatbot (升级版：多轮对话 + 真实 RAG 审核)
+// ...前面的代码保持不变
+
 router.post('/', verifyToken, async (req, res) => {
-    const { message, history } = req.body; // 🟢 接收前端的历史记录
+    const { message, history } = req.body;
     
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
     try {
-        // 1. 联网搜索：结合上下文优化关键词
-        // 如果 history 存在，我们可以让模型在提示词中知道这是一个延续的话题
-        const searchKeyword = `${message} real charity organizations and clothing donation shelters in Malaysia 2026`;
+        const searchKeyword = `${message} Malaysia charity clothing donation 2026`;
         const searchResults = await searchWeb(searchKeyword);
 
-        // 2. 清洗数据：初步剔除社交媒体，只留干货 (确保来源权威性)
         const cleanData = searchResults
             .filter(item => !/facebook|instagram|tiktok|twitter/.test(item.link))
-            .slice(0, 4)
+            .slice(0, 3)
             .map(item => ({ title: item.title, snippet: item.snippet, link: item.link }));
 
-        // 3. 构造 Gemini 多轮对话 + RAG (检索增强生成)
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
-        // 转换历史记录格式
-        const chatContext = history.map(h => ({
-            role: h.sender === 'user' ? 'user' : 'model',
-            parts: [{ text: h.text }]
-        }));
+        // 🟢 核心修复：在这里过滤掉 history 开头的所有 model 消息，并确保以 user 开头
+        const validHistory = history
+            .filter(h => h.text && h.text.trim().length > 0) // 过滤空消息
+            .map(h => ({
+                role: h.sender === 'user' ? 'user' : 'model',
+                parts: [{ text: h.text }]
+            }));
 
-        const chat = model.startChat({ history: chatContext });
+        // 确保第一个角色必须是 user，如果是 model 则切掉它
+        const startIdx = validHistory.findIndex(h => h.role === 'user');
+        const finalHistory = startIdx !== -1 ? validHistory.slice(startIdx) : [];
 
-        // 🟢 关键 Prompt：命令 AI 进行二次“审计”
+        const chat = model.startChat({
+            history: finalHistory,
+        });
+
         const prompt = `
-            You are a professional Charity Assistance AI for Malaysia.
-            Here is verified reference data from the web: ${JSON.stringify(cleanData)}
-            
-            Instructions:
-            1. ONLY provide real, verifiable charity organization names from the reference data.
-            2. If the user asks for "more in [Location]" or refers to previous info, use the context.
-            3. FORBIDDEN: Do not suggest social media posts, ads, or Yelp/Tripadvisor directory links.
-            4. If the user asks for a table, format it in Markdown with columns: Organization, Purpose, Location/Details, Link.
-            5. Provide real links from the data.
-            6. Tone: Professional, warm, and accurate.
-            
-            Current User Query: ${message}
+            You are a helpful Charity Assistant for Malaysia.
+            Reference Information: ${JSON.stringify(cleanData)}
+            Instructions: 
+            - Answer accurately based on the reference. 
+            - If the user asks for a table, format it cleanly in Markdown.
+            - Keep it professional and helpful.
+            User's Current Question: ${message}
         `;
 
         const result = await chat.sendMessage(prompt);
@@ -77,8 +77,8 @@ router.post('/', verifyToken, async (req, res) => {
 
         res.status(200).json({ reply });
     } catch (err) {
-        console.error("AI Chatbot Error:", err);
-        res.status(500).json({ error: 'Failed to process AI query' });
+        console.error("AI Error:", err);
+        res.status(500).json({ error: 'AI processing failed' });
     }
 });
 
