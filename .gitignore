@@ -24,10 +24,12 @@ backend/.env
 *.zip
 dataset/
 **/dataset/
-uploads/
-**/uploads/
-AI_module/uploads/
-backend/uploads/
+uploads/*
+!uploads/.gitkeep
+AI_module/uploads/*
+!AI_module/uploads/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
 
 # 过滤操作系统和 VS Code 的缓存垃圾
 .DS_Store
