@@ -90,7 +90,7 @@ router.post('/upload', upload.single('image'), verifyToken, async (req, res) => 
         );
     } catch (err) {
         console.error("❌ Upload Error:", err.message);
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message || 'Unknown Server Error' });
     }
 });
 
