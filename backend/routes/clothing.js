@@ -113,6 +113,105 @@ router.get('/', verifyToken, (req, res) => {
         res.json({ items: results });
     });
 });
+// Route 3: Distribute items
+router.post('/distribute', verifyToken, (req, res) => {
+    const { recipient_name, pic_name, contact, email, note, item_ids } = req.body;
+    if (!recipient_name || !item_ids || item_ids.length === 0) {
+        return res.status(400).json({ error: 'recipient_name and item_ids are required' });
+    }
+    db.query(
+        `INSERT INTO distributions (recipient_name, pic_name, contact, email, note, organization_name, status) VALUES (?,?,?,?,?,?,'Completed')`,
+        [recipient_name, pic_name || null, contact || null, email || null, note || null, req.orgName],
+        (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const distId = result.insertId;
+            const values = item_ids.map((id) => [distId, id]);
+            db.query(`INSERT INTO distribution_items (distribution_id, cloth_id) VALUES ?`, [values], (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.status(201).json({ distribution_id: distId });
+            });
+        }
+    );
+});
+
+// Route 4: GET all distributions
+router.get('/distributions', verifyToken, (req, res) => {
+    db.query(
+        `SELECT d.*, COUNT(di.cloth_id) as items_count FROM distributions d 
+         LEFT JOIN distribution_items di ON d.id = di.distribution_id 
+         WHERE d.organization_name = ? 
+         GROUP BY d.id ORDER BY d.created_at DESC`,
+        [req.orgName],
+        (err, results) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(results);
+        }
+    );
+});
+
+// Route 5: GET items in a distribution
+router.get('/distributions/:id/items', verifyToken, (req, res) => {
+    db.query(
+        `SELECT ci.* FROM clothing_items ci 
+         JOIN distribution_items di ON ci.cloth_id = di.cloth_id 
+         WHERE di.distribution_id = ?`,
+        [req.params.id],
+        (err, results) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(results);
+        }
+    );
+});
+
+// Route 6: PUT update distribution
+router.put('/distributions/:id', verifyToken, (req, res) => {
+    const { recipient_name, pic_name, contact, email, note } = req.body;
+    db.query(
+        `UPDATE distributions SET recipient_name=?, pic_name=?, contact=?, email=?, note=? WHERE id=? AND organization_name=?`,
+        [recipient_name, pic_name, contact, email, note, req.params.id, req.orgName],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        }
+    );
+});
+
+// Route 7: Cancel distribution
+router.post('/distributions/:id/cancel', verifyToken, (req, res) => {
+    db.query(
+        `UPDATE distributions SET status='Cancelled' WHERE id=? AND organization_name=?`,
+        [req.params.id, req.orgName],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        }
+    );
+});
+
+// Route 8: DELETE item
+router.delete('/:id', verifyToken, (req, res) => {
+    db.query(
+        `DELETE FROM clothing_items WHERE cloth_id=? AND organization_name=?`,
+        [req.params.id, req.orgName],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        }
+    );
+});
+
+// Route 9: PUT update item
+router.put('/:id', verifyToken, (req, res) => {
+    const { item_name, description, gender, age_group, clothing_type, sub_type } = req.body;
+    db.query(
+        `UPDATE clothing_items SET item_name=?, description=?, gender=?, age_group=?, clothing_type=?, sub_type=? WHERE cloth_id=? AND organization_name=?`,
+        [item_name, description, gender, age_group, clothing_type, sub_type, req.params.id, req.orgName],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        }
+    );
+});
 
 router.mapToValidENUMs = mapToValidENUMs;
 module.exports = router;
