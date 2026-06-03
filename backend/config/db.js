@@ -20,3 +20,5 @@ db.connect((err) => {
 });
 
 module.exports = db;
+
+console.log("Current connected db host is：", process.env.DB_HOST);
