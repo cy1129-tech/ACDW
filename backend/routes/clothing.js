@@ -98,7 +98,7 @@ router.post('/upload', upload.single('image'), verifyToken, async (req, res) => 
 router.get('/', verifyToken, (req, res) => {
     const { type, gender, age_group, search } = req.query;
     
-    let sql = `SELECT * FROM clothing_items WHERE organization_name = ? AND distributed = 0`;
+    let sql = `SELECT * FROM clothing_items WHERE organization_name = ? `;
     let params = [req.orgName];
 
     if (type) { sql += ` AND clothing_type = ?`; params.push(type); }
