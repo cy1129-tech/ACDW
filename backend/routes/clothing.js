@@ -1,61 +1,25 @@
 // backend/routes/clothing.js
-const express     = require('express');
-const router      = express.Router();
+const express = require('express');
+const router = express.Router();
 const multer = require('multer');
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs');
+const db = require('../config/db');
+const verifyToken = require('../middleware/auth');
+require('dotenv').config();
+
+// 统一配置 Multer (一次定义，到处使用)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
     filename: (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
 });
-
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 2 * 1024 * 1024 } // 限制 2MB
+    limits: { fileSize: 2 * 1024 * 1024 } // 2MB 限制
 });
-router.post('/upload', (req, res) => {
-    upload(req, res, (err) => {
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({ error: "File too large! Max 2MB allowed." });
-        }
-        // ... 后续处理
-    });
-});
-const axios       = require('axios');
-const FormData    = require('form-data');
-const fs          = require('fs');
-const db          = require('../config/db');
-const verifyToken = require('../middleware/auth');
-require('dotenv').config();
 
-// Database Auto-Initialization Engine
-db.query(`
-    CREATE TABLE IF NOT EXISTS distributions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        recipient_name VARCHAR(255) NOT NULL,
-        pic_name VARCHAR(255),
-        contact VARCHAR(100),
-        email VARCHAR(255),
-        note TEXT,
-        items_count INT DEFAULT 0,
-        status VARCHAR(50) DEFAULT 'Completed',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        organization_name VARCHAR(255) NOT NULL
-    )
-`, (err) => { if (err) console.error("Error building distributions table:", err); });
-
-db.query(`
-    CREATE TABLE IF NOT EXISTS distribution_items (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        distribution_id INT NOT NULL,
-        cloth_id INT NOT NULL,
-        item_name VARCHAR(255),
-        gender VARCHAR(50),
-        age_group VARCHAR(50),
-        clothing_type VARCHAR(50),
-        organization_name VARCHAR(255) NOT NULL
-    )
-`, (err) => { if (err) console.error("Error building distribution_items table:", err); });
-
-
+// [你的辅助函数保持不变]
 function correctGenderByClothing(clothingType, subType, detectedGender) {
     if (clothingType === 'Skirt') return 'Female';
     if (subType && typeof subType === 'string' && subType.toLowerCase().includes('skirt')) return 'Female';
@@ -67,8 +31,6 @@ function mapToValidENUMs(aiResult) {
     const validGenders = ['Female', 'Male', 'Unisex'];
     const validAgeGroups = ['Children', 'Adult'];
     const validClothingTypes = ['Pants', 'Clothes', 'Skirt', 'Dress'];
-    const validPriorities = ['High', 'Medium', 'Low'];
-
     const subTypesByClothing = {
         'Pants': ['Long pants', 'Short pants'],
         'Clothes': ['Long sleeve', 'Short sleeve'],
@@ -77,34 +39,17 @@ function mapToValidENUMs(aiResult) {
     };
 
     function findClosestMatch(value, validList) {
-        if (!value || validList.length === 0) return validList[0] || null;
-        value = String(value).trim();
-        const exactMatch = validList.find(v => v.toLowerCase() === value.toLowerCase());
-        if (exactMatch) return exactMatch;
-        const partialMatch = validList.find(v => v.toLowerCase().includes(value.toLowerCase()) || value.toLowerCase().includes(v.toLowerCase()));
-        if (partialMatch) return partialMatch;
-        return validList[0] || null;
+        if (!value) return validList[0];
+        const v = String(value).toLowerCase();
+        return validList.find(item => item.toLowerCase().includes(v) || v.includes(item.toLowerCase())) || validList[0];
     }
 
     let clothingType = findClosestMatch(aiResult.clothing_type, validClothingTypes);
-    let subType = null;
-    const originalSubType = String(aiResult.sub_type || '').toLowerCase();
-
-    if (originalSubType.includes('suit') || originalSubType.includes('jacket')) {
-        clothingType = 'Clothes';
-        subType = 'Long sleeve';
-    } else {
-        const validSubTypes = subTypesByClothing[clothingType] || [];
-        if (validSubTypes.length > 0) {
-            subType = findClosestMatch(aiResult.sub_type, validSubTypes);
-        }
-    }
-
-    let gender = findClosestMatch(aiResult.gender, validGenders);
-    gender = correctGenderByClothing(clothingType, subType, gender);
+    let subType = findClosestMatch(aiResult.sub_type, subTypesByClothing[clothingType] || []);
+    let gender = correctGenderByClothing(clothingType, subType, findClosestMatch(aiResult.gender, validGenders));
 
     return {
-        gender: gender,
+        gender,
         age_group: findClosestMatch(aiResult.age_group, validAgeGroups),
         clothing_type: clothingType,
         sub_type: subType,
@@ -112,84 +57,33 @@ function mapToValidENUMs(aiResult) {
     };
 }
 
-// Route 1: Upload image + AI classify
-
-// Route 1: Upload image + AI classify
+// Route 1: Upload (确保这里用了 upload.single)
 router.post('/upload', upload.single('image'), verifyToken, async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No image file uploaded' });
-        }
+        if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
 
-        // 🛡️ 双保险兜底
-        const bodyData = req.body || {};
-        
-        const itemNameRaw = bodyData.item_name || bodyData.itemName || 'Clothing Item';
-        const descriptionRaw = bodyData.description || '';
-        const gender = bodyData.gender || 'Unisex';
-        const age_group = bodyData.age_group || 'Adult';
-        const sub_type = bodyData.sub_type || null;
-
-        const item_name = itemNameRaw;
-        const description = descriptionRaw;
-
-        console.log("🚀 [ONLINE SUCCESS] FormData safely parsed. Forwarding real stream to Flask CLIP...");
-
-        // 🟢 打包真正的 FormData 物理文件流
         const form = new FormData();
         form.append('image', fs.createReadStream(req.file.path), {
             filename: req.file.filename,
             contentType: req.file.mimetype,
         });
-        form.append('gender', gender);
-        form.append('age_group', age_group);
-        if (sub_type) form.append('sub_type', sub_type);
-
-        // 发送请求给你的 Flask CLIP 服务
+        
         const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, form, {
-            headers: {
-                ...form.getHeaders()
-            }
+            headers: { ...form.getHeaders() }
         });
 
-        const aiResult = aiResponse.data;
-        const mappedValues = mapToValidENUMs(aiResult);
+        const mapped = mapToValidENUMs(aiResponse.data);
+        const combinedLabel = [mapped.gender, mapped.age_group, mapped.clothing_type, mapped.sub_type].join(' + ');
 
-        const labels = [mappedValues.gender, mappedValues.age_group, mappedValues.clothing_type];
-        if (mappedValues.sub_type) labels.push(mappedValues.sub_type);
-        const combinedLabel = labels.join(' + ');
-
-        // 👑 终极黄金修正：数据库里【只存纯文件名】，不要把 uploads/ 路径前缀带进去！
-        const finalFileName = req.file.filename; 
-
-        // 存入云端/本地数据库
         db.query(
-            `INSERT INTO clothing_items
-             (item_name, description, gender, age_group, clothing_type, sub_type, combined_label, priority, image_path, organization_name)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                item_name,
-                description,
-                mappedValues.gender,
-                mappedValues.age_group,
-                mappedValues.clothing_type,
-                mappedValues.sub_type,
-                combinedLabel,
-                mappedValues.priority,
-                finalFileName, // 👈 核心改变：以前是 req.file.path，现在换成纯文件名 finalFileName！
-                req.orgName 
-            ],
+            `INSERT INTO clothing_items (item_name, description, gender, age_group, clothing_type, sub_type, combined_label, priority, image_path, organization_name) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+            [req.body.item_name || 'Item', req.body.description || '', mapped.gender, mapped.age_group, mapped.clothing_type, mapped.sub_type, combinedLabel, mapped.priority, req.file.filename, req.orgName],
             (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.status(201).json({ 
-                    message: 'Clothing uploaded and classified via CLIP ✅', 
-                    item_id: result.insertId, 
-                    ai_result: mappedValues 
-                });
+                res.status(201).json({ item_id: result.insertId, ai_result: mapped });
             }
         );
     } catch (err) {
-        console.error("❌ Online Backend Route Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
