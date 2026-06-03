@@ -1,6 +1,4 @@
-// ==========================================
-// 1. 基础依赖与环境配置导入 (Imports)
-// ==========================================
+//Server,js
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');     // 👈 挪到最顶层，确保后面使用时绝不报 undefined！

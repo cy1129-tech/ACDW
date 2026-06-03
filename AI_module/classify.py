@@ -10,8 +10,8 @@ processor = CLIPProcessor.from_pretrained(model_name, local_files_only=True)
 
 # 🟢 服装款式提示词
 CLOTHING_PROMPTS = [
-    "a photo of a long sleeve upper clothing, jacket, coat, or blazer with long sleeves",
-    "a photo of a summer short sleeve t-shirt, polo, or top with short sleeves",
+    "a photo of a long sleeve a photo of a shirt with long sleeves extending to the wrist example like jacket, coat, or blazer with long sleeves and so on",
+    "a photo of a summer short sleeve t-shirt, polo, or top with short sleeves ending above the elbow",
     "a photo of long trousers, jeans, or pants covering full legs",
     "a photo of short pants, cargo shorts, or hot pants showing legs",
     "a photo of a long maxi skirt or half-body long skirt covering legs",
@@ -32,9 +32,14 @@ PROMPT_MAP = {
 }
 
 def classify(image_path, gender=None, age_group=None, sub_type=None):
-    """基于 CLIP 的全自动服装款式 + 年龄段 + 性别全能识别引擎"""
     try:
-        img = Image.open(image_path).convert('RGB')
+        img = Image.open(image_path)
+        if img.format == 'AVIF':
+            # if its is avif, convert it to png
+            buffer = io.BytesIO()
+            img.save(buffer, format="PNG")
+            img = Image.open(buffer)
+        img = img.convert('RGB').resize((224, 224))
         
         # 1. 👕 第一轮：判断衣服款式
         inputs_clothing = processor(text=CLOTHING_PROMPTS, images=img, return_tensors="pt", padding=True)

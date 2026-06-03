@@ -34,9 +34,30 @@ export default function UploadPage() {
     else if (clothingType === 'Dress') setSubType('Dress');
   }, [clothingType]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
       const f = e.target.files[0];
+      
+      // 1. 格式校验
+      const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+      if (!validTypes.includes(f.type)) {
+        setError('❌ Invalid file format! Please upload a JPG or PNG image.');
+        setFile(null);
+        setPreviewUrl(null);
+        return;
+      }
+
+      // 2. 大小校验 (2MB = 2 * 1024 * 1024 bytes)
+      const MAX_FILE_SIZE = 2 * 1024 * 1024;
+      if (f.size > MAX_FILE_SIZE) {
+        setError('❌ Image file is too large! Please choose an image smaller than 2MB.');
+        setFile(null);
+        setPreviewUrl(null);
+        return;
+      }
+
+      // 3. 一切合规，正常处理
+      setError('');
       setFile(f);
       setPreviewUrl(URL.createObjectURL(f));
     }
