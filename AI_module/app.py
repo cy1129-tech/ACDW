@@ -84,7 +84,7 @@ def classify_image():
         
     except Exception as e:
             import traceback
-            traceback.print_exc() # 这行代码会强制在终端打印完整的红色报错堆栈
+            traceback.print_exc() 
             return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
