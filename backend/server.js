@@ -19,6 +19,7 @@ app.use(express.urlencoded({ extended: true }))
 // Routes
 app.use('/api/auth',      require('./routes/auth'))
 app.use('/api/clothing',  require('./routes/clothing'))
+console.log("✅ Clothing routes loaded at /api/clothing");
 app.use('/api/chatbot',   require('./routes/chatbot'))
 
 // A simple test route
