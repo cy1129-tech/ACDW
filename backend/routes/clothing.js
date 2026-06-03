@@ -56,6 +56,31 @@ function mapToValidENUMs(aiResult) {
         priority: 'Medium'
     };
 }
+// 替换掉你原有的路由定义，把 error 处理放进去
+router.post('/upload', (req, res) => {
+    upload.single('image')(req, res, async (err) => {
+        // 🚨 捕捉 Multer 的报错
+        if (err instanceof multer.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ error: "File too large! Max 2MB allowed." });
+            }
+            return res.status(400).json({ error: err.message });
+        } else if (err) {
+            return res.status(500).json({ error: "Unknown upload error" });
+        }
+
+        // 成功后的逻辑
+        try {
+            await verifyToken(req, res, async () => {
+                if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+                
+                // ... 你原本的 Forwarding to Flask CLIP 逻辑 ...
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+});
 
 // Route 1: Upload (确保这里用了 upload.single)
 router.post('/upload', upload.single('image'), verifyToken, async (req, res) => {
