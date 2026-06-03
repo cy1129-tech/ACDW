@@ -10,13 +10,6 @@ const verifyToken = require('../middleware/auth');
 require('dotenv').config();
 
 
-// 统一配置 Multer (一次定义，到处使用)
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
-});
-
-
 // [你的辅助函数保持不变]
 function correctGenderByClothing(clothingType, subType, detectedGender) {
     if (clothingType === 'Skirt') return 'Female';
@@ -58,6 +51,10 @@ function mapToValidENUMs(aiResult) {
         priority: 'Medium'
     };
 }
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, 'uploads/'),
+    filename: (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
+});
 const upload = multer({
     storage: multer.memoryStorage(), 
     limits: { fileSize: 2 * 1024 * 1024 }
@@ -66,18 +63,14 @@ const upload = multer({
 // Route 1: Upload (upload.single)
 router.post('/upload', upload.single('image'), verifyToken, async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'No image file uploaded' });
+        if (!req.file) return res.status(400).json({ error: 'No image' });
 
-        const { item_name, description, gender, age_group, sub_type } = req.body;
+        // 1. AI识别用内存读取 (从硬盘读一份出来给内存)
+        const fileBuffer = fs.readFileSync(req.file.path); 
         
-        console.log("🚀 Forwarding buffer to Flask CLIP...");
-
+        // 2. 发送给 Flask (FormData 里 append 这个 buffer)
         const form = new FormData();
-        // 直接使用 buffer，而不是 fs.createReadStream
-        form.append('image', req.file.buffer, {
-            filename: req.file.originalname,
-            contentType: req.file.mimetype,
-        });
+        form.append('image', fileBuffer, { filename: req.file.originalname });
         
         if (gender) form.append('gender', gender);
         if (age_group) form.append('age_group', age_group);
