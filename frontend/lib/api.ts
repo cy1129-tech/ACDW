@@ -1,7 +1,8 @@
 // lib/api.ts
 // This file handles all communication with the backend API
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// 确保 URL 结尾没有多余的斜杠
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
 
 // Helper function to make API calls
 async function apiCall(
@@ -10,6 +11,10 @@ async function apiCall(
   body?: any,
   token?: string
 ) {
+  // 🟢 调试：这是查找 404 的关键
+  const fullUrl = `${API_URL}${endpoint}`;
+  console.log("🚀 正在请求后端:", fullUrl);
+
   const headers: any = {
     'Content-Type': 'application/json',
   };
@@ -27,7 +32,14 @@ async function apiCall(
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, options);
+  const response = await fetch(fullUrl, options);
+  
+  // 检查是否返回了 HTML (这通常是 404 或 500 的报错页)
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.indexOf("application/json") === -1) {
+    throw new Error("服务器返回了非 JSON 格式的响应 (可能是 404 或服务器错误)");
+  }
+
   const data = await response.json();
 
   if (!response.ok) {
@@ -38,30 +50,10 @@ async function apiCall(
 }
 
 // ==========================================
-// AUTH FUNCTIONS
+// 简化路由：确保 endpoint 以 / 开头
 // ==========================================
 
-export async function registerUser(username: string, email: string, password: string) {
-  return apiCall('/auth/register', 'POST', { username, email, password });
-}
-
-export async function loginUser(username: string, password: string) {
-  return apiCall('/auth/login', 'POST', { username, password });
-}
-
-// ==========================================
-// CLOTHING FUNCTIONS
-// ==========================================
-
-export async function getClothingItems(
-  token: string,
-  filters?: {
-    type?: string;
-    gender?: string;
-    age_group?: string;
-    search?: string;
-  }
-) {
+export async function getClothingItems(token: string, filters?: any) {
   let query = '';
   if (filters) {
     const params = new URLSearchParams();
@@ -74,40 +66,6 @@ export async function getClothingItems(
   return apiCall(`/clothing${query}`, 'GET', null, token);
 }
 
-export async function addClothingItem(
-  token: string,
-  item: {
-    item_name: string;
-    description?: string;
-    gender?: string;
-    age_group?: string;
-    clothing_type: string;
-    sub_type?: string;
-  }
-) {
-  return apiCall('/clothing', 'POST', item, token);
-}
-
-export async function updateClothingItem(
-  token: string,
-  itemId: number,
-  item: {
-    item_name: string;
-    description?: string;
-    gender?: string;
-    age_group?: string;
-    clothing_type: string;
-    sub_type?: string;
-  }
-) {
-  return apiCall(`/clothing/${itemId}`, 'PUT', item, token);
-}
-
-export async function deleteClothingItem(token: string, itemId: number) {
-  return apiCall(`/clothing/${itemId}`, 'DELETE', null, token);
-}
-
-// Upload image and AI classify
 export async function uploadAndClassifyImage(
   token: string,
   file: File,
@@ -118,9 +76,7 @@ export async function uploadAndClassifyImage(
   sub_type?: string
 ) {
   const formData = new FormData();
-  // 🟢 FIXED: 使用正确的 file 参数，不再报错
   formData.append('image', file); 
-  
   formData.append('item_name', item_name);
   formData.append('description', description);
   if (gender) formData.append('gender', gender);
@@ -132,7 +88,7 @@ export async function uploadAndClassifyImage(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // 🟢 重要：不要手动设置 Content-Type，让浏览器自动识别 multipart/form-data
+  // 必须使用 full URL
   const response = await fetch(`${API_URL}/clothing/upload`, {
     method: 'POST',
     headers,
@@ -143,7 +99,6 @@ export async function uploadAndClassifyImage(
   if (!response.ok) {
     throw new Error(data.error || 'Upload failed');
   }
-
   return data;
 }
 
@@ -153,8 +108,6 @@ export function getSharedImageUrl(imagePath: string | null | undefined): string 
   let fileName = imagePath;
   if (imagePath.includes('uploads/')) {
     fileName = imagePath.split('uploads/').pop() || imagePath;
-  } else if (imagePath.includes('uploads\\')) {
-    fileName = imagePath.split('uploads\\').pop() || imagePath;
   }
   
   fileName = fileName.replace(/\\/g, '/').replace(/^\//, '');

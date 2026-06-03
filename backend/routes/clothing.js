@@ -94,7 +94,25 @@ router.post('/upload', upload.single('image'), verifyToken, async (req, res) => 
     }
 });
 
-// ... 其他路由保持不变 (Route 2 到 Route 10) ...
+// Route 2: GET all clothing items
+router.get('/', verifyToken, (req, res) => {
+    const { type, gender, age_group, search } = req.query;
+    
+    let sql = `SELECT * FROM clothing_items WHERE organization_name = ? AND distributed = 0`;
+    let params = [req.orgName];
+
+    if (type) { sql += ` AND clothing_type = ?`; params.push(type); }
+    if (gender) { sql += ` AND gender = ?`; params.push(gender); }
+    if (age_group) { sql += ` AND age_group = ?`; params.push(age_group); }
+    if (search) { sql += ` AND item_name LIKE ?`; params.push(`%${search}%`); }
+
+    sql += ` ORDER BY created_at DESC`;
+
+    db.query(sql, params, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ items: results });
+    });
+});
 
 router.mapToValidENUMs = mapToValidENUMs;
 module.exports = router;
