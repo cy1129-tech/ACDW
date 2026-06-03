@@ -62,11 +62,14 @@ const upload = multer({
 
 // Route 1: Upload (upload.single)
 router.post('/upload', upload.single('image'), verifyToken, async (req, res) => {
+    console.log("DEBUG: req.file is:", req.file);
     try {
-        if (!req.file) return res.status(400).json({ error: 'No image' });
+       if (!req.file) {
+            return res.status(400).json({ error: 'No image uploaded. Make sure field name is "image"' });
+        }
 
-        // 1. AI识别用内存读取 (从硬盘读一份出来给内存)
-        const fileBuffer = fs.readFileSync(req.file.path); 
+        // 只有确保 req.file 存在时，才去读 path
+        const fileBuffer = fs.readFileSync(req.file.path);
         
         // 2. 发送给 Flask (FormData 里 append 这个 buffer)
         const form = new FormData();
