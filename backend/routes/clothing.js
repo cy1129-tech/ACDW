@@ -1,19 +1,30 @@
 // backend/routes/clothing.js
 const express     = require('express');
 const router      = express.Router();
-const multer      = require('multer');
+const multer = require('multer');
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, 'uploads/'),
+    filename: (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 2 * 1024 * 1024 } // 限制 2MB
+});
+router.post('/upload', (req, res) => {
+    upload(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ error: "File too large! Max 2MB allowed." });
+        }
+        // ... 后续处理
+    });
+});
 const axios       = require('axios');
 const FormData    = require('form-data');
 const fs          = require('fs');
 const db          = require('../config/db');
 const verifyToken = require('../middleware/auth');
 require('dotenv').config();
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename:    (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
-});
-const upload = multer({ storage });
 
 // Database Auto-Initialization Engine
 db.query(`
