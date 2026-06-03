@@ -3,22 +3,25 @@ from transformers import CLIPProcessor, CLIPModel
 from PIL import Image
 import os
 
+
 # 🟢 全自动：直接加载 OpenAI 在几十亿张全彩网页时装图上预训练好的大模型
 model_name = "openai/clip-vit-base-patch32"
 model = CLIPModel.from_pretrained(model_name, local_files_only=True)
 processor = CLIPProcessor.from_pretrained(model_name, local_files_only=True)
 
+
 # 🟢 服装款式提示词
 CLOTHING_PROMPTS = [
-    "a photo of a long sleeve a photo of a shirt with long sleeves extending to the wrist example like jacket, coat, or blazer with long sleeves and so on",
-    "a photo of a summer short sleeve t-shirt, polo, or top with short sleeves ending above the elbow",
-    "a photo of long trousers, jeans, or pants covering full legs",
-    "a photo of short pants, cargo shorts, or hot pants showing legs",
-    "a photo of a long maxi skirt or half-body long skirt covering legs",
-    "a photo of a short mini skirt or sexy short skirt showing thighs",
-    "a photo of a full body elegant long dress, gown, or evening dress",
-    "a photo of a casual short dress, mini dress, or summer short dress"
+    "a photo of a shirt, jacket, or blazer with sleeves ending at the wrist (long sleeve)",
+    "a photo of a t-shirt, polo, or top with sleeves ending above the elbow (short sleeve) or top with no sleeve extension",
+    "a photo of full-length trousers, jeans, or pants reaching the ankles",
+    "a photo of shorts, cargo shorts, or hot pants ending above the knee",
+    "a photo of a long maxi skirt reaching the ankles, touching the ground",
+    "a photo of a mini skirt or short skirt ending above the mid-thigh or knee, showing legs",
+    "a photo of a full-length elegant long dress or gown reaching the floor",
+    "a photo of a casual short dress or mini dress ending above the knee"
 ]
+
 
 PROMPT_MAP = {
     0: {'type': 'Clothes', 'sub_type': 'long sleeve'},
@@ -31,6 +34,7 @@ PROMPT_MAP = {
     7: {'type': 'Dress',   'sub_type': 'short dress'}
 }
 
+
 def classify(image_path, gender=None, age_group=None, sub_type=None):
     try:
         img = Image.open(image_path)
@@ -40,52 +44,54 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
             img.save(buffer, format="PNG")
             img = Image.open(buffer)
         img = img.convert('RGB').resize((224, 224))
-        
+       
         # 1. 👕 第一轮：判断衣服款式
         inputs_clothing = processor(text=CLOTHING_PROMPTS, images=img, return_tensors="pt", padding=True)
         with torch.no_grad():
             outputs_c = model(**inputs_clothing)
             probs_c = outputs_c.logits_per_image.softmax(dim=-1)
             class_idx = torch.argmax(probs_c).item()
-        
+       
         clothing_map = PROMPT_MAP[class_idx]
         detected_type = clothing_map['type']
         detected_sub_type = clothing_map['sub_type']
-        
+       
         # 2. 👶 第二轮：全自动看图猜年龄段！
         # 🟢 提示词放大对比度 + 强制由 AI 独立预测
         AGE_PROMPTS = [
-            "a photo of small tiny baby clothes, kids wear, children outfit, toddler outfit, clothing for small kids", 
+            "a photo of small tiny baby clothes, kids wear, children outfit, toddler outfit, clothing for small kids",
             "a photo of standard adult clothing, regular sized fashion clothes for mature adults and grown-ups"
         ]
         AGE_MAP = {0: "Children", 1: "Adult"}
-        
+       
         inputs_age = processor(text=AGE_PROMPTS, images=img, return_tensors="pt", padding=True)
         with torch.no_grad():
             outputs_a = model(**inputs_age)
             probs_a = outputs_a.logits_per_image.softmax(dim=-1)
             age_idx = torch.argmax(probs_a).item()
-        
+       
         final_age_group = AGE_MAP[age_idx]
-        
+       
         # 3. 🚻 第三轮：全自动看图猜性别！
         # 🟢 强制由 AI 独立预测
         GENDER_PROMPTS = ["clothing for men, male style", "clothing for women, female style, lady fashion", "unisex clothes"]
         GENDER_MAP = {0: "Male", 1: "Female", 2: "Unisex"}
-        
+       
         inputs_gender = processor(text=GENDER_PROMPTS, images=img, return_tensors="pt", padding=True)
         with torch.no_grad():
             outputs_g = model(**inputs_gender)
             probs_g = outputs_g.logits_per_image.softmax(dim=-1)
             gender_idx = torch.argmax(probs_g).item()
-            
+           
         final_gender = GENDER_MAP[gender_idx]
-        
+       
         # 裙子连衣裙强开 Female 保护
         if detected_type in ['Skirt', 'Dress']:
             final_gender = 'Female'
 
+
         print(f"🕵️‍♂️ [CLIP Summary] Style: {detected_sub_type} | Age: {final_age_group} | Gender: {final_gender}")
+
 
         return {
             'clothing_type': detected_type,
@@ -101,3 +107,4 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
             'clothing_type': 'Clothes', 'sub_type': 'short sleeve',
             'gender': 'Unisex', 'age_group': 'Adult', 'confidence': 0, 'error': str(e)
         }
+
