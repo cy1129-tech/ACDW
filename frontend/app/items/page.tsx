@@ -343,11 +343,20 @@ export default function ItemsPage() {
     setSelectedIds(selectedIds.includes(id) ? selectedIds.filter(sid => sid !== id) : [...selectedIds, id]);
   };
 
-  const getImageUrl = (path: string) => {
-    if (!path) return '/placeholder-cloth.png';
-    return `http://localhost:5000/${path.replace(/\\/g, '/')}`;
-  };
-
+ const getImageUrl = (path: string) => {
+  if (!path) return '/placeholder-cloth.png';
+  
+  // 1. convert\\ to /
+  let normalizedPath = path.replace(/\\/g, '/');
+  
+  // 2. if path alr got uploads then no need add uploads/
+  if (normalizedPath.startsWith('uploads/')) {
+    return `http://localhost:5000/${normalizedPath}`;
+  }
+  
+  // 3. if dont have then uploads/
+  return `http://localhost:5000/uploads/${normalizedPath}`;
+};
   const getDynamicInventorySummary = () => {
     const map: { [key: string]: { gender: string; age_group: string; clothing_type: string; count: number } } = {};
     items.forEach(item => {

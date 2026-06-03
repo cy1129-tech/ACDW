@@ -34,13 +34,41 @@ export default function UploadPage() {
     else if (clothingType === 'Dress') setSubType('Dress');
   }, [clothingType]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const f = e.target.files[0];
-      setFile(f);
-      setPreviewUrl(URL.createObjectURL(f));
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  if (e.target.files && e.target.files.length > 0) {
+    const f = e.target.files[0] as File; // 🟢 显式断言它是 File 对象
+    
+    // 1. 格式校验
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!validTypes.includes(f.type)) {
+      setError('❌ Invalid file format! Please upload a JPG or PNG image.');
+      setFile(null);
+      setPreviewUrl(null);
+      return;
     }
-  };
+
+    // 2. 大小校验 (2MB)
+    const MAX_FILE_SIZE = 2 * 1024 * 1024;
+    if (f.size > MAX_FILE_SIZE) {
+      setError('❌ Image too large! Max 2MB.');
+      setFile(null);
+      setPreviewUrl(null);
+      return;
+    }
+
+    // 3. 赋值
+    setError('');
+    setFile(f);
+    
+    // 🟢 绕过 instanceof 报错：使用 URL.createObjectURL 时，File 本身就是 Blob 的子类
+    // 直接调用即可，不需要 instanceof 校验
+    setPreviewUrl(URL.createObjectURL(f));
+    
+  } else {
+    setFile(null);
+    setPreviewUrl(null);
+  }
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

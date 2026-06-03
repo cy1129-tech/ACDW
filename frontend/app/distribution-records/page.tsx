@@ -105,11 +105,20 @@ export default function DistributionRecordsPage() {
     }
   };
 
-  const getImageUrl = (path: string) => {
-    if (!path) return '/placeholder-cloth.png';
-    return `http://localhost:5000/${path.replace(/\\/g, '/')}`;
-  };
-
+ const getImageUrl = (path: string) => {
+  if (!path) return '/placeholder-cloth.png';
+  
+  // 1. convert\\ to /
+  let normalizedPath = path.replace(/\\/g, '/');
+  
+  // 2. if path alr got uploads then no need add uploads/
+  if (normalizedPath.startsWith('uploads/')) {
+    return `http://localhost:5000/${normalizedPath}`;
+  }
+  
+  // 3. if dont have then uploads/
+  return `http://localhost:5000/uploads/${normalizedPath}`;
+};
   const filteredRecords = records.filter(rec => {
     const matchesSearch = rec.recipient_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (rec.pic_name && rec.pic_name.toLowerCase().includes(searchQuery.toLowerCase())) ||

@@ -10,14 +10,14 @@ processor = CLIPProcessor.from_pretrained(model_name, local_files_only=True)
 
 # 🟢 服装款式提示词
 CLOTHING_PROMPTS = [
-    "a photo of a long sleeve upper clothing, jacket, coat, or blazer with long sleeves",
-    "a photo of a summer short sleeve t-shirt, polo, or top with short sleeves",
-    "a photo of long trousers, jeans, or pants covering full legs",
-    "a photo of short pants, cargo shorts, or hot pants showing legs",
-    "a photo of a long maxi skirt or half-body long skirt covering legs",
-    "a photo of a short mini skirt or sexy short skirt showing thighs",
-    "a photo of a full body elegant long dress, gown, or evening dress",
-    "a photo of a casual short dress, mini dress, or summer short dress"
+    "a photo of a shirt, jacket, or blazer with sleeves ending at the wrist (long sleeve)",
+    "a photo of a t-shirt, polo, or top with sleeves ending above the elbow (short sleeve) or top with no sleeve extension",
+    "a photo of full-length trousers, jeans, or pants reaching the ankles",
+    "a photo of shorts, cargo shorts, or hot pants ending above the knee",
+    "a photo of a long maxi skirt reaching the ankles, touching the ground",
+    "a photo of a mini skirt or short skirt ending above the mid-thigh or knee, showing legs",
+    "a photo of a full-length elegant long dress or gown reaching the floor",
+    "a photo of a casual short dress or mini dress ending above the knee"
 ]
 
 PROMPT_MAP = {
