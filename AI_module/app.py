@@ -37,6 +37,7 @@ PROMPT_MAP = {
 
 @app.route('/classify', methods=['POST'])
 def classify_image():
+    print("FILES RECEIVED:", request.files.keys())
     try:
         if 'image' not in request.files:
             return jsonify({'error': 'No image file provided'}), 400
@@ -82,7 +83,8 @@ def classify_image():
         }), 200
         
     except Exception as e:
-            print("❌ Flask Error Details:", e) # 重点：这行会把错误直接显示在你的黑色终端里
+            import traceback
+            traceback.print_exc() # 这行代码会强制在终端打印完整的红色报错堆栈
             return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
