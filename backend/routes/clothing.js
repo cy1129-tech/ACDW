@@ -15,10 +15,6 @@ const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
     filename: (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
 });
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 2 * 1024 * 1024 } // 2MB 限制
-});
 
 
 // [你的辅助函数保持不变]
@@ -62,7 +58,10 @@ function mapToValidENUMs(aiResult) {
         priority: 'Medium'
     };
 }
-
+const upload = multer({
+    storage: multer.memoryStorage(), 
+    limits: { fileSize: 2 * 1024 * 1024 }
+});
 
 // Route 1: Upload (upload.single)
 router.post('/upload', upload.single('image'), verifyToken, async (req, res) => {
@@ -83,6 +82,9 @@ router.post('/upload', upload.single('image'), verifyToken, async (req, res) => 
         if (gender) form.append('gender', gender);
         if (age_group) form.append('age_group', age_group);
         if (sub_type) form.append('sub_type', sub_type);
+        // 在 backend/routes/clothing.js 里
+console.log("FormData headers:", form.getHeaders());
+// 确保这个 FormData 真的包含名为 'image' 的 Buffer 数据
 
         const aiResponse = await axios.post(`${process.env.AI_URL}/classify`, form, {
             headers: { ...form.getHeaders() },
