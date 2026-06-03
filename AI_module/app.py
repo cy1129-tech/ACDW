@@ -82,7 +82,8 @@ def classify_image():
         }), 200
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+            print("❌ Flask Error Details:", e) # 重点：这行会把错误直接显示在你的黑色终端里
+            return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
