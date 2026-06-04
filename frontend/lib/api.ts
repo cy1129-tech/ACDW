@@ -1,6 +1,9 @@
 // lib/api.ts
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// This file handles all communication with the backend API
 
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://acdw-backend-node.onrender.com/api';;
+
+// Helper function to make API calls
 async function apiCall(
   endpoint: string,
   method: string = 'GET',
@@ -34,6 +37,10 @@ async function apiCall(
   return data;
 }
 
+// ==========================================
+// AUTH FUNCTIONS
+// ==========================================
+
 export async function registerUser(username: string, email: string, password: string) {
   return apiCall('/auth/register', 'POST', { username, email, password });
 }
@@ -41,6 +48,10 @@ export async function registerUser(username: string, email: string, password: st
 export async function loginUser(username: string, password: string) {
   return apiCall('/auth/login', 'POST', { username, password });
 }
+
+// ==========================================
+// CLOTHING FUNCTIONS
+// ==========================================
 
 export async function getClothingItems(
   token: string,
@@ -96,6 +107,7 @@ export async function deleteClothingItem(token: string, itemId: number) {
   return apiCall(`/clothing/${itemId}`, 'DELETE', null, token);
 }
 
+// Upload image and AI classify
 export async function uploadAndClassifyImage(
   token: string,
   file: File,
@@ -106,7 +118,9 @@ export async function uploadAndClassifyImage(
   sub_type?: string
 ) {
   const formData = new FormData();
-  formData.append('image', file);
+  // 🟢 FIXED: 使用正确的 file 参数，不再报错
+  formData.append('image', file); 
+  
   formData.append('item_name', item_name);
   formData.append('description', description);
   if (gender) formData.append('gender', gender);
@@ -118,6 +132,7 @@ export async function uploadAndClassifyImage(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  // 🟢 重要：不要手动设置 Content-Type，让浏览器自动识别 multipart/form-data
   const response = await fetch(`${API_URL}/clothing/upload`, {
     method: 'POST',
     headers,
@@ -141,7 +156,7 @@ export function getSharedImageUrl(imagePath: string | null | undefined): string 
   } else if (imagePath.includes('uploads\\')) {
     fileName = imagePath.split('uploads\\').pop() || imagePath;
   }
-
+  
   fileName = fileName.replace(/\\/g, '/').replace(/^\//, '');
 
   const baseDomain = API_URL.replace(/\/api$/, '');
