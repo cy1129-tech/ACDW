@@ -31,6 +31,7 @@ function mapToValidENUMs(aiResult) {
     const validGenders = ['Female', 'Male', 'Unisex'];
     const validAgeGroups = ['Children', 'Adult'];
     const validClothingTypes = ['Pants', 'Clothes', 'Skirt', 'Dress'];
+    
     const subTypesByClothing = {
         'Pants': ['Long pants', 'Short pants'],
         'Clothes': ['Long sleeve', 'Short sleeve'],
@@ -38,10 +39,13 @@ function mapToValidENUMs(aiResult) {
         'Dress': []
     };
 
-    function findClosestMatch(value, validList) {
-        if (!value) return validList[0];
-        const v = String(value).toLowerCase();
-        return validList.find(item => item.toLowerCase().includes(v) || v.includes(item.toLowerCase())) || validList[0];
+function findClosestMatch(value, validList) {
+        if (!value || validList.length === 0) return validList[0] || null;
+        const v = String(value).trim().toLowerCase();
+        
+        // 🟢 FIXED: Return the actual item from the valid list so capitalization is preserved correctly
+        const matchedItem = validList.find(item => item.toLowerCase().includes(v) || v.includes(item.toLowerCase()));
+        return matchedItem || validList[0];
     }
 
     let clothingType = findClosestMatch(aiResult.clothing_type, validClothingTypes);
