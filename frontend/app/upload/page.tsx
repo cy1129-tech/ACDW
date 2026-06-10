@@ -26,13 +26,18 @@ export default function UploadPage() {
 
   const { token } = useAuth();
   const router = useRouter();
+  const [isAiLoaded, setIsAiLoaded] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
+    if (isAiLoaded) {
+        setIsAiLoaded(false);
+        return;  // AI 刚设置的，跳过覆盖
+    }
     if (clothingType === 'Clothes') setSubType('Short sleeve');
     else if (clothingType === 'Pants') setSubType('Long pants');
     else if (clothingType === 'Skirt') setSubType('Short skirt');
     else if (clothingType === 'Dress') setSubType('Dress');
-  }, [clothingType]);
+}, [clothingType]);
 
 const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   if (e.target.files && e.target.files.length > 0) {
@@ -81,6 +86,7 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       setSuccess('✅ AI Analysis Complete! Review the categories below.');
       setAiResult(result.ai_result);
       setItemId(result.item_id);
+      setIsAiLoaded(true); 
       setClothingType(result.ai_result.clothing_type || 'Clothes');
       setSubType(result.ai_result.sub_type || 'Short sleeve');
       setGender(result.ai_result.gender || 'Unisex');
