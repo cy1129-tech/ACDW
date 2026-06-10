@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ACDW - Clothing Donation System",
+  title: "SnapDonate - Clothing Donation System",
   description: "AI-powered clothing donation management",
 };
 

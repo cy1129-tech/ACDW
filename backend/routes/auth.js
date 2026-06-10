@@ -25,13 +25,13 @@ router.post('/register', (req, res) => {
                 resend.emails.send({
                     from: 'onboarding@resend.dev',
                     to: email,
-                    subject: '✨ Welcome to ACDW Clothing Management Platform!',
+                    subject: '✨ Welcome to SnapDonate - A Clothing Management Platform!',
                     html: `
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
                             <h2 style="color: #4f46e5; text-align: center;">Account Initialized Successfully! 🎉</h2>
                             <p>Hi <strong>${username}</strong>,</p>
                             <p>Your profile is linked successfully with <strong>${organization_name}</strong>! You can now manage the shared organizational stock pool.</p>
-                            <p style="font-size: 12px; color: #cbd5e1; text-align: center;">© 2026 ACDW Inventory Group. All Rights Reserved.</p>
+                            <p style="font-size: 12px; color: #cbd5e1; text-align: center;">© 2026 SnapDonate Inventory Group. All Rights Reserved.</p>
                         </div>
                     `
                 }).then(() => console.log('✉️ Welcome email sent!'))
@@ -70,7 +70,7 @@ router.post('/forgot-password', (req, res) => {
             resend.emails.send({
                 from: 'onboarding@resend.dev',
                 to: email,
-                subject: '🔒 Your ACDW Temporary Password Reset',
+                subject: '🔒 You SnapDonate Temporary Password Reset',
                 html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f1f5f9; border-radius: 12px;">
                         <h2 style="color: #dc2626; text-align: center;">Password Reset Request</h2>
