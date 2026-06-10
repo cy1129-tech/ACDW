@@ -118,13 +118,20 @@ function determineNeed(text) {
         s.includes('clothing') ||
         s.includes('textile') ||
         s.includes('fabric') ||
-        s.includes('garment')
+        s.includes('garment') ||
+        s.includes('clothes') ||
+        s.includes('donate') ||
+        s.includes('donation') ||
+        s.includes('recycle') ||
+        s.includes('thrift') ||
+        s.includes('preloved') ||
+        s.includes('pre-loved')
     ) {
         return 'Accepts Clothing Donations';
     }
 
 
-    return 'Need Status Not Publicly Stated';
+    return 'Accepts Donations (verify before visiting)';
 }
 
 
@@ -363,8 +370,8 @@ router.post('/', verifyToken, async (req, res) => {
             link.includes('hopesmalaysia');
 
 
-                const regionMatched =
-                    combined.includes(regionLower);
+                const regionPattern = new RegExp(`\\b${regionLower}\\b`);
+                const regionMatched = regionPattern.test(combined);
 
 
                 if (
@@ -391,11 +398,13 @@ router.post('/', verifyToken, async (req, res) => {
 
 
 
-    const uniqueKey =
+    /*const uniqueKey =
         (
             title +
             link
-        ).toLowerCase();
+        ).toLowerCase();*/
+        const domain = (link.match(/https?:\/\/([^\/]+)/)?.[1] || link).toLowerCase();
+const uniqueKey = domain;
 
 
             if (seen.has(uniqueKey))

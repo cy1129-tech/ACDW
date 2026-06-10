@@ -10,6 +10,8 @@ model = CLIPModel.from_pretrained(model_name, local_files_only=True)
 processor = CLIPProcessor.from_pretrained(model_name, local_files_only=True)
 
 
+
+
 # 🟢 服装款式提示词
 CLOTHING_PROMPTS = [
     "a photo of a shirt, jacket, or blazer with sleeves ending at the wrist (long sleeve)",
@@ -35,15 +37,14 @@ PROMPT_MAP = {
 }
 
 
+
+
+
+
 def classify(image_path, gender=None, age_group=None, sub_type=None):
+    """基于 CLIP 的全自动服装款式 + 年龄段 + 性别全能识别引擎"""
     try:
-        img = Image.open(image_path)
-        if img.format == 'AVIF':
-            # if its is avif, convert it to png
-            buffer = io.BytesIO()
-            img.save(buffer, format="PNG")
-            img = Image.open(buffer)
-        img = img.convert('RGB').resize((224, 224))
+        img = Image.open(image_path).convert('RGB')
        
         # 1. 👕 第一轮：判断衣服款式
         inputs_clothing = processor(text=CLOTHING_PROMPTS, images=img, return_tensors="pt", padding=True)
@@ -93,6 +94,24 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
         print(f"🕵️‍♂️ [CLIP Summary] Style: {detected_sub_type} | Age: {final_age_group} | Gender: {final_gender}")
 
 
+
+
+        SPORT_PROMPTS = [
+            "a sports jersey, athletic wear, esports shirt, polo shirt with geometric pattern",
+            "a casual everyday clothing item"
+        ]
+        inputs_sport = processor(text=SPORT_PROMPTS, images=img, return_tensors="pt", padding=True)
+        with torch.no_grad():
+            outputs_s = model(**inputs_sport)
+            probs_s = outputs_s.logits_per_image.softmax(dim=-1)
+            is_sport = torch.argmax(probs_s).item() == 0
+
+
+        # sport short=unisex
+        if is_sport and final_gender == 'Female' and detected_type == 'Clothes':
+            final_gender = 'Unisex'
+
+
         return {
             'clothing_type': detected_type,
             'sub_type': detected_sub_type,
@@ -107,4 +126,7 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
             'clothing_type': 'Clothes', 'sub_type': 'short sleeve',
             'gender': 'Unisex', 'age_group': 'Adult', 'confidence': 0, 'error': str(e)
         }
+ 
+
+
 
