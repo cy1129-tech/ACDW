@@ -21,9 +21,9 @@ const upload = multer({
 
 // [你的辅助函数保持不变]
 function correctGenderByClothing(clothingType, subType, detectedGender) {
-    if (clothingType === 'Skirt') return 'Female';
+    /*if (clothingType === 'Skirt') return 'Female';
     if (subType && typeof subType === 'string' && subType.toLowerCase().includes('skirt')) return 'Female';
-    if (clothingType === 'Dress') return 'Female';
+    if (clothingType === 'Dress') return 'Female';*/
     return detectedGender;
 }
 
