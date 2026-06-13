@@ -1,57 +1,62 @@
 from flask import Flask, request, jsonify
-from PIL import Image
-import io
+from classify import classify
+import os
+import base64
+import re
+import time
 import traceback
-import torch
-# 如果你有 model 和 processor，请在这里取消注释并初始化
-# from transformers import CLIPProcessor, CLIPModel 
 
-# 1. 初始化 Flask 应用 (确保这一行在最前面，防止 NameError)
 app = Flask(__name__)
 
-# 2. 如果你有模型加载需求，放在这里（在应用启动时只加载一次）
-# model = ... 
-# processor = ...
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route('/classify', methods=['POST'])
-def classify_image():
-    """
-    接收 POST 请求，从 request.files 获取图片，返回 AI 分类结果
-    """
+def classify_route():
     try:
-        if 'image' not in request.files:
-            return jsonify({'error': 'No image file provided'}), 400
-            
-        file = request.files['image']
-        image_bytes = file.read()
-        
-        # 将二进制流转为图片对象
-        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        
-        # --- 在这里插入你原来的模型推理逻辑 ---
-        # 示例：
-        ai_result = {
-            'clothing_type': 'Clothes',
-            'sub_type': 'Short sleeve',
-            'gender': 'Unisex',
-            'age_group': 'Adult'
-        }
-        # ------------------------------------
-        
-        return jsonify(ai_result), 200
-        
+        # 方式1: JSON (base64)
+        if request.content_type and 'application/json' in request.content_type:
+            data = request.get_json()
+            if not data or 'image' not in data:
+                return jsonify({'error': 'No image data received'}), 400
+
+            raw_b64 = str(data['image'])
+            if ',' in raw_b64:
+                raw_b64 = raw_b64.split(',')[1]
+            raw_b64 = re.sub(r'\s+', '', raw_b64)
+            image_data = base64.b64decode(raw_b64)
+
+            unique_filename = f"upload_{int(time.time() * 1000)}.jpg"
+            path = os.path.join(UPLOAD_FOLDER, unique_filename)
+            with open(path, 'wb') as f:
+                f.write(image_data)
+
+        # 方式2: multipart/form-data (直接文件)
+        elif request.files and 'image' in request.files:
+            file = request.files['image']
+            unique_filename = f"upload_{int(time.time() * 1000)}.jpg"
+            path = os.path.join(UPLOAD_FOLDER, unique_filename)
+            file.save(path)
+
+        else:
+            return jsonify({'error': 'No image provided'}), 400
+
+        result = classify(image_path=path)
+        print(f"⚡ Final result: {result}")
+
+        if os.path.exists(path):
+            os.remove(path)
+
+        return jsonify(result), 200
+
     except Exception as e:
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("CRITICAL ERROR DETECTED:")
         traceback.print_exc()
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
-def health_check():
-    return jsonify({"status": "alive"}), 200
+def health():
+    return jsonify({'status': 'AI server running'}), 200
 
-# 3. 运行服务器
 if __name__ == '__main__':
-    # host='0.0.0.0' 允许外部访问，port=10000 是你在本地运行和云端隧道的监听端口
-    app.run(host='0.0.0.0', port=10000, debug=True)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=False)
