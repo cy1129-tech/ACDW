@@ -3,13 +3,10 @@ from transformers import CLIPProcessor, CLIPModel
 from PIL import Image
 import os
 
-
 # 🟢 全自动：直接加载 OpenAI 在几十亿张全彩网页时装图上预训练好的大模型
 model_name = "openai/clip-vit-base-patch32"
 model = CLIPModel.from_pretrained(model_name, local_files_only=True)
 processor = CLIPProcessor.from_pretrained(model_name, local_files_only=True)
-
-
 
 
 # 🟢 服装款式提示词
@@ -24,7 +21,6 @@ CLOTHING_PROMPTS = [
     "a photo of a casual short dress or mini dress ending above the knee"
 ]
 
-
 PROMPT_MAP = {
     0: {'type': 'Clothes', 'sub_type': 'long sleeve'},
     1: {'type': 'Clothes', 'sub_type': 'short sleeve'},
@@ -38,62 +34,53 @@ PROMPT_MAP = {
 
 
 
-
-
-
 def classify(image_path, gender=None, age_group=None, sub_type=None):
-    """基于 CLIP 的全自动服装款式 + 年龄段 + 性别全能识别引擎"""
+   
     try:
         img = Image.open(image_path).convert('RGB')
-       
-        # 1. 👕 第一轮：判断衣服款式
+        
+
         inputs_clothing = processor(text=CLOTHING_PROMPTS, images=img, return_tensors="pt", padding=True)
         with torch.no_grad():
             outputs_c = model(**inputs_clothing)
             probs_c = outputs_c.logits_per_image.softmax(dim=-1)
             class_idx = torch.argmax(probs_c).item()
-       
+        
         clothing_map = PROMPT_MAP[class_idx]
         detected_type = clothing_map['type']
         detected_sub_type = clothing_map['sub_type']
-       
-        # 2. 👶 第二轮：全自动看图猜年龄段！
-        # 🟢 提示词放大对比度 + 强制由 AI 独立预测
+     
         AGE_PROMPTS = [
-            "a photo of small tiny baby clothes, kids wear, children outfit, toddler outfit, clothing for small kids",
+            "a photo of small tiny baby clothes, kids wear, children outfit, toddler outfit, clothing for small kids", 
             "a photo of standard adult clothing, regular sized fashion clothes for mature adults and grown-ups"
         ]
         AGE_MAP = {0: "Children", 1: "Adult"}
-       
+        
         inputs_age = processor(text=AGE_PROMPTS, images=img, return_tensors="pt", padding=True)
         with torch.no_grad():
             outputs_a = model(**inputs_age)
             probs_a = outputs_a.logits_per_image.softmax(dim=-1)
             age_idx = torch.argmax(probs_a).item()
-       
+        
         final_age_group = AGE_MAP[age_idx]
-       
-        # 3. 🚻 第三轮：全自动看图猜性别！
-        # 🟢 强制由 AI 独立预测
+        
+      
         GENDER_PROMPTS = ["clothing for men, male style", "clothing for women, female style, lady fashion", "unisex clothes"]
         GENDER_MAP = {0: "Male", 1: "Female", 2: "Unisex"}
-       
+        
         inputs_gender = processor(text=GENDER_PROMPTS, images=img, return_tensors="pt", padding=True)
         with torch.no_grad():
             outputs_g = model(**inputs_gender)
             probs_g = outputs_g.logits_per_image.softmax(dim=-1)
             gender_idx = torch.argmax(probs_g).item()
-           
+            
         final_gender = GENDER_MAP[gender_idx]
-       
-        # 裙子连衣裙强开 Female 保护
+        
+     
         if detected_type in ['Skirt', 'Dress']:
             final_gender = 'Female'
 
-
         print(f"🕵️‍♂️ [CLIP Summary] Style: {detected_sub_type} | Age: {final_age_group} | Gender: {final_gender}")
-
-
 
 
         SPORT_PROMPTS = [
@@ -106,11 +93,9 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
             probs_s = outputs_s.logits_per_image.softmax(dim=-1)
             is_sport = torch.argmax(probs_s).item() == 0
 
-
         # sport short=unisex
         if is_sport and final_gender == 'Female' and detected_type == 'Clothes':
             final_gender = 'Unisex'
-
 
         return {
             'clothing_type': detected_type,
@@ -126,7 +111,4 @@ def classify(image_path, gender=None, age_group=None, sub_type=None):
             'clothing_type': 'Clothes', 'sub_type': 'short sleeve',
             'gender': 'Unisex', 'age_group': 'Adult', 'confidence': 0, 'error': str(e)
         }
- 
-
-
-
+  
