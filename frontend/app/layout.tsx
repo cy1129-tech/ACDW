@@ -16,7 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SnapDonate - Clothing Donation System",
   description: "AI-powered clothing donation management",
-};
+  icons: {
+    icon: "/logo.png", 
+  },
+}
 
 export default function RootLayout({
   children,
