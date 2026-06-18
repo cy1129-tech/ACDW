@@ -58,9 +58,9 @@ router.post('/register', (req, res) => {
 
                     // 📬 全自动异步系统邮件发信
                     const mailOptions = {
-                        from: `"ACDW Platform" <${process.env.EMAIL_USER}>`,
+                        from: `"SnapDonate Platform" <${process.env.EMAIL_USER}>`,
                         to: email,
-                        subject: '✨ Welcome to ACDW Clothing Management Platform!',
+                        subject: '✨ Welcome to SnapDonate Clothing Management Platform!',
                         html: `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
                                 <h2 style="color: #4f46e5; text-align: center;">Account Initialized Successfully! 🎉</h2>
@@ -71,7 +71,7 @@ router.post('/register', (req, res) => {
                                         🚀 Launch Platform & Login
                                     </a>
                                 </div>
-                                <p style="font-size: 12px; color: #cbd5e1; text-align: center;">© 2026 ACDW Inventory Group. All Rights Reserved.</p>
+                                <p style="font-size: 12px; color: #cbd5e1; text-align: center;">© 2026 SnapDonate. All Rights Reserved.</p>
                             </div>
                         `
                     };
@@ -185,9 +185,9 @@ router.post('/forgot-password', (req, res) => {
 
                     // 5. 华丽地通过 Nodemailer 异步向用户邮箱发送临时密码信件 🚀
                     const mailOptions = {
-                        from: `"ACDW Security" <${process.env.EMAIL_USER}>`,
+                        from: `"SnapDonate Security" <${process.env.EMAIL_USER}>`,
                         to: email,
-                        subject: '🔒 Urgent: Your ACDW Temporary Password Reset',
+                        subject: '🔒 Urgent: Your SnapDonate Temporary Password Reset',
                         html: `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f1f5f9; border-radius: 12px; background-color: #ffffff;">
                                 <h2 style="color: #dc2626; text-align: center;">Password Reset Request</h2>

@@ -22,7 +22,7 @@ app.use('/api/chatbot',   require('./routes/chatbot'))
 
 // A simple test route
 app.get('/', (req, res) => {
-    res.json({ message: "Welcome to the ACDW Backend API!" });
+    res.json({ message: "Welcome to the SnapDonate Backend API!" });
 });
 
 //Test to read data from Users database
