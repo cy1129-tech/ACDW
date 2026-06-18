@@ -4,7 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
 const geistSans = Geist({
-  variable: "--font-gradient-sans", // 保持你原本的字体变量配置
+  variable: "--font-gradient-sans",
   subsets: ["latin"],
 });
 
@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ACDW - Clothing Donation System",
+  title: "SnapDonate - Clothing Donation System",
   description: "AI-powered clothing donation management",
+  icons: {
+    icon: "/logo.png", 
+  },
 };
 
 export default function RootLayout({
