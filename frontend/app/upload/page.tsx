@@ -202,6 +202,11 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                     <p style={{ color: '#c4b5fd', fontSize: 13, fontWeight: 700, marginTop: 8 }}>Drop your image here</p>
                   )}
                 </div>
+                
+                <p style={{ color: '#6b21a8', fontSize: 11, fontWeight: 700, marginTop: 6, paddingLeft: 4, opacity: 0.8 }}>
+                💡 Tip: For best AI accuracy, ensure your clothing item is well-lit and the photo is clear.
+              </p>
+
                 {file && <p style={{ color: '#059669', fontSize: 13, fontWeight: 700, marginTop: 8 }}>✓ {file.name} selected</p>}
               </div>
 
