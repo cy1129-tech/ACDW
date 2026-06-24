@@ -178,7 +178,7 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
           </button>
         </div>
 
-        {/* Main */}
+        {/* Main // */}
         <div className="main-area">
           <div className="page-header">
             <div className="page-title">Upload & AI Classify</div>
