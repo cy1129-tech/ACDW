@@ -208,13 +208,21 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 <label className="field-label">📸 Image File *</label>
                 <div className="upload-zone">
                   <input type="file" accept="image/*" onChange={handleFileChange} style={{ width: '100%', fontFamily: 'Nunito', fontSize: 13, color: '#7c3aed' }} />
+
+
                   {previewUrl && !file && (
                     <img src={previewUrl} alt="preview" style={{ marginTop: 12, maxHeight: 120, borderRadius: 12, objectFit: 'contain' }} />
                   )}
                   {!file && !previewUrl && (
                     <p style={{ color: '#c4b5fd', fontSize: 13, fontWeight: 700, marginTop: 8 }}>Drop your image here</p>
+                    
                   )}
                 </div>
+
+                <p style={{ color: '#6b21a8', fontSize: 11, fontWeight: 700, marginTop: 6, paddingLeft: 4, opacity: 0.8 }}>
+                💡 Tip: For best AI accuracy, ensure your clothing item is well-lit and the photo is clear.
+              </p>
+
                 {file && <p style={{ color: '#059669', fontSize: 13, fontWeight: 700, marginTop: 8 }}>✓ {file.name} selected</p>}
               </div>
 
